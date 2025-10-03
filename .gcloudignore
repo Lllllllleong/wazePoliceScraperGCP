@@ -1,0 +1,21 @@
+# This file specifies files that are *not* uploaded to Google Cloud
+.gcloudignore
+.git
+.gitignore
+
+# Go build artifacts
+*.exe
+*.test
+*.out
+
+# IDE
+.vscode/
+.idea/
+
+# Development files
+README.md
+.env
+*.md
+
+# Scripts
+scripts/

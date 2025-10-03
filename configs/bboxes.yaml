@@ -1,0 +1,23 @@
+# Waze Scraper - Bounding Box Configuration
+
+# Each bounding box defines a geographic area to scrape
+# Format: "west,south,east,north" (longitude_min,latitude_min,longitude_max,latitude_max)
+# Find coordinates: https://boundingbox.klokantech.com/ (use CSV format)
+
+# Sydney to Canberra - Hume Highway Coverage
+bboxes:
+  - name: "Hume Highway - Sydney"
+    bbox: "150.38822599217056,-34.254577954626086,151.00867887302994,-33.937977044844004"
+    description: "Sydney section of Hume Highway"
+  
+  - name: "Hume Highway - Middle"
+    bbox: "149.58926145838367,-34.76915040190209,150.83016722010242,-34.138639582841435"
+    description: "Middle section of Hume Highway"
+  
+  - name: "Hume Highway - Canberra"
+    bbox: "149.09281124417694,-35.21080621952668,150.3337170058957,-34.583661538587855"
+    description: "Canberra section of Hume Highway"
+  
+  - name: "Canberra Region"
+    bbox: "148.80885598970738,-35.4530012424677,149.42930887056676,-35.14096097196958"
+    description: "Canberra metropolitan area"

@@ -1,0 +1,41 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/bin/
+/dist/
+
+# Test binary
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Go workspace file
+go.work
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment variables
+.env
+*.env.local
+
+# GCP
+.gcloud/
+service-account-key.json
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data files
+*.json
+*.jsonl
+!configs/*.json
