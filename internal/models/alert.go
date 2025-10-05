@@ -67,9 +67,6 @@ type WazeAlert struct {
 	AdditionalInfo string `json:"additionalInfo,omitempty" firestore:"additional_info,omitempty"`
 	WazeData       string `json:"wazeData,omitempty" firestore:"waze_data,omitempty"`
 	Inscale        bool   `json:"inscale,omitempty" firestore:"inscale,omitempty"`
-
-	// Metadata added by our scraper
-	ScrapedAt time.Time `json:"scraped_at,omitempty" firestore:"-"` // Deprecated, use PoliceAlert.ScrapeTime
 }
 
 // PoliceAlert represents a tracked police alert with full lifecycle tracking

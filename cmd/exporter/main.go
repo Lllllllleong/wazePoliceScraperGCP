@@ -18,9 +18,9 @@ func main() {
 		projectID      = flag.String("project", os.Getenv("GCP_PROJECT_ID"), "GCP Project ID")
 		collectionName = flag.String("collection", os.Getenv("FIRESTORE_COLLECTION"), "Firestore collection name (default: police_alerts)")
 		startDate      = flag.String("start", "", "Start date (YYYY-MM-DD)")
-		endDate   = flag.String("end", "", "End date (YYYY-MM-DD)")
-		output    = flag.String("output", "police_alerts.jsonl", "Output file path")
-		format    = flag.String("format", "jsonl", "Output format: json or jsonl")
+		endDate        = flag.String("end", "", "End date (YYYY-MM-DD)")
+		output         = flag.String("output", "police_alerts.jsonl", "Output file path")
+		format         = flag.String("format", "jsonl", "Output format: json or jsonl")
 	)
 
 	flag.Parse()

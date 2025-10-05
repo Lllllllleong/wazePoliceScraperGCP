@@ -127,8 +127,6 @@ func (c *Client) GetAlertsMultipleBBoxes(bboxes []string) ([]models.WazeAlert, e
 		for _, alert := range result.Alerts {
 			if alert.UUID != "" {
 				if _, exists := uniqueAlerts[alert.UUID]; !exists {
-					// Add scraped timestamp
-					alert.ScrapedAt = time.Now()
 					uniqueAlerts[alert.UUID] = alert
 				} else {
 					log.Printf("Duplicate alert found across bboxes: %s", alert.UUID)
