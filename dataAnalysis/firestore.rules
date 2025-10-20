@@ -1,0 +1,20 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Police alerts collection - read-only access for authenticated users
+    match /police_alerts/{alertId} {
+      // Allow read access for any authenticated user (including anonymous)
+      allow read: if request.auth != null;
+      
+      // Deny all write access from web clients
+      // Only backend services should write to this collection
+      allow write: if false;
+    }
+    
+    // Deny access to all other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

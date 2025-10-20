@@ -4,6 +4,12 @@
 
 set -e
 
+# Load .env file if it exists
+if [ -f .env ]; then
+  echo "📋 Loading environment variables from .env..."
+  export $(cat .env | grep -v '^#' | xargs)
+fi
+
 # Configuration
 PROJECT_ID="${GCP_PROJECT_ID:-your-project-id}"
 COLLECTION_NAME="${FIRESTORE_COLLECTION:-police_alerts}"

@@ -62,7 +62,7 @@ func main() {
 	end = end.Add(24*time.Hour - time.Second)
 
 	// Fetch police alerts
-	log.Printf("Fetching police alerts from %s to %s", start.Format("2006-01-02"), end.Format("2006-01-02"))
+	log.Printf("Fetching police alerts active from %s to %s (expire_time >= start AND publish_time <= end)", start.Format("2006-01-02"), end.Format("2006-01-02"))
 	alerts, err := firestoreClient.GetPoliceAlertsByDateRange(ctx, start, end)
 	if err != nil {
 		log.Fatalf("Failed to fetch police alerts: %v", err)
@@ -114,8 +114,8 @@ func main() {
 	fmt.Printf("   Format: %s\n", *format)
 
 	if len(alerts) > 0 {
-		fmt.Printf("\n📍 Date range in export:\n")
-		fmt.Printf("   First: %s\n", alerts[0].ScrapeTime.Format("2006-01-02 15:04:05"))
-		fmt.Printf("   Last:  %s\n", alerts[len(alerts)-1].ScrapeTime.Format("2006-01-02 15:04:05"))
+		fmt.Printf("\n📍 Alert lifecycle range in export:\n")
+		fmt.Printf("   First published: %s\n", alerts[0].PublishTime.Format("2006-01-02 15:04:05"))
+		fmt.Printf("   Last expired:    %s\n", alerts[len(alerts)-1].ExpireTime.Format("2006-01-02 15:04:05"))
 	}
 }

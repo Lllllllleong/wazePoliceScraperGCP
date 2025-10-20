@@ -179,14 +179,17 @@ func extractLastVerification(comments []models.Comment) (*int64, *time.Time) {
 	return &maxMillis, &verificationTime
 }
 
-// GetPoliceAlertsByDateRange retrieves police alerts within a date range
+// GetPoliceAlertsByDateRange retrieves police alerts that were active within a date range
+// An alert is considered active if: expire_time >= startDate AND publish_time <= endDate
+// This captures all alerts whose lifecycle overlaps with the specified date range
 func (fc *FirestoreClient) GetPoliceAlertsByDateRange(ctx context.Context, startDate, endDate time.Time) ([]models.PoliceAlert, error) {
-	log.Printf("Querying police alerts from %s to %s", startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
+	log.Printf("Querying police alerts active from %s to %s", startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
 
 	query := fc.client.Collection(fc.collectionName).
-		Where("scrape_time", ">=", startDate).
-		Where("scrape_time", "<=", endDate).
-		OrderBy("scrape_time", firestore.Asc)
+		Where("expire_time", ">=", startDate).
+		Where("publish_time", "<=", endDate).
+		OrderBy("expire_time", firestore.Asc).
+		OrderBy("publish_time", firestore.Asc)
 
 	docs, err := query.Documents(ctx).GetAll()
 	if err != nil {
