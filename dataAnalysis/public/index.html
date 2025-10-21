@@ -4,10 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Waze Police Alert Analysis</title>
+    <title>Police Alert Analysis</title>
 
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- Leaflet.timeline CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet.timeline@1.6.0/dist/leaflet.timeline.min.css" />
 
     <!-- Flatpickr CSS for multi-date picker -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -17,11 +20,102 @@
 </head>
 
 <body>
+    <!-- Disclaimer Modal -->
+    <div id="disclaimer-modal" class="disclaimer-modal">
+        <div class="disclaimer-content">
+            <div class="disclaimer-header">
+                <h2>⚠️ Important Notice & Disclaimer</h2>
+            </div>
+            <div class="disclaimer-body">
+                <section>
+                    <h3>Educational & Portfolio Purpose</h3>
+                    <p>This application is an experimental educational project created solely for learning purposes and
+                        as a technical portfolio demonstration. It is not intended for commercial use, public
+                        deployment, or as a reliable service.</p>
+                </section>
+
+                <section>
+                    <h3>No Warranties or Guarantees</h3>
+                    <p>This application and all data presented are provided "AS IS" without any warranties of any kind,
+                        either express or implied. The creator makes no guarantees regarding:</p>
+                    <ul>
+                        <li>Accuracy, completeness, or reliability of the data</li>
+                        <li>Availability or uptime of the service</li>
+                        <li>Fitness for any particular purpose</li>
+                        <li>Data freshness or real-time accuracy</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h3>Data Source Disclaimer</h3>
+                    <p>All police alert data is sourced from third-party services and may be inaccurate, outdated,
+                        incomplete, or false. This data should NOT be used for:</p>
+                    <ul>
+                        <li>Making driving or route decisions</li>
+                        <li>Evading law enforcement</li>
+                        <li>Any illegal activities</li>
+                        <li>Critical safety or emergency decisions</li>
+                        <li>Professional or commercial purposes</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h3>Prohibited Uses</h3>
+                    <p>By using this application, you explicitly agree NOT to use the data or service to:</p>
+                    <ul>
+                        <li>Violate any local, state, or federal laws</li>
+                        <li>Evade, obstruct, or interfere with law enforcement activities</li>
+                        <li>Engage in any illegal or criminal activities</li>
+                        <li>Cause harm to individuals or property</li>
+                        <li>Redistribute or commercialize the data</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h3>Limitation of Liability</h3>
+                    <p>The creator of this application shall NOT be held liable for:</p>
+                    <ul>
+                        <li>Any damages arising from use of this application</li>
+                        <li>Any decisions made based on data from this application</li>
+                        <li>Service interruptions, data loss, or technical failures</li>
+                        <li>Any legal consequences resulting from use of this application</li>
+                        <li>Actions taken by third parties who access data from this application</li>
+                    </ul>
+                </section>
+
+                <section>
+                    <h3>No Agency or Representation</h3>
+                    <p>This application does not act on behalf of any government agency, law enforcement, or official
+                        organization. It has no authority to provide official information or represent any entity.</p>
+                </section>
+
+                <section>
+                    <h3>Assumption of Risk</h3>
+                    <p>By clicking "I Acknowledge" below, you:</p>
+                    <ul>
+                        <li>Acknowledge this is an experimental, educational project</li>
+                        <li>Understand the data may be inaccurate or unreliable</li>
+                        <li>Agree not to use the data for illegal purposes or to evade law enforcement</li>
+                        <li>Accept all risks associated with using this application</li>
+                        <li>Release the creator from any and all liability</li>
+                        <li>Confirm you are using this application at your own risk</li>
+                    </ul>
+                </section>
+
+                <p class="disclaimer-warning"><strong>If you do not agree to these terms, please close this browser tab
+                        immediately.</strong></p>
+            </div>
+            <div class="disclaimer-footer">
+                <button id="disclaimer-accept-btn" class="btn btn-primary btn-large">I Acknowledge & Accept</button>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
         <!-- Header -->
         <header>
-            <h1>🚓 Waze Police Alert Analysis</h1>
-            <p>Real-time analysis of police alerts in Sydney-Canberra region</p>
+            <h1>Police Alert Analysis</h1>
+            <p>Near real-time analysis of police alerts in Sydney-Canberra region</p>
         </header>
 
         <!-- Controls Panel -->
@@ -30,7 +124,7 @@
                 <h3>📅 Step 1: Select Dates to Load</h3>
                 <div class="time-controls">
                     <div class="input-group">
-                        <label for="date-picker">Select Days (multiple selection allowed):</label>
+                        <label for="date-picker">Select Days (maximum 14 days):</label>
                         <input type="text" id="date-picker" placeholder="Click to select dates..." readonly>
                     </div>
                     <div class="selected-dates-info">
@@ -62,29 +156,39 @@
                         </div>
                     </div>
                     <div class="input-group">
-                        <label for="city-selection">City Filters:</label>
-                        <div class="city-filter-container">
-                            <div id="city-tags" class="tag-selection-field">
-                                <span class="tag-placeholder">No cities selected (showing all)</span>
+                        <label for="street-selection">Street Filters:</label>
+                        <div class="street-filter-container">
+                            <div id="street-tags" class="tag-selection-field">
+                                <span class="tag-placeholder">No streets selected (showing all)</span>
                             </div>
-                            <select id="city-dropdown" class="filter-dropdown">
-                                <option value="" disabled selected>Select a city to add...</option>
+                            <select id="street-dropdown" class="filter-dropdown">
+                                <option value="" disabled selected>Select a street to add...</option>
                             </select>
                         </div>
+                        <small class="filter-help-text">💡 Tip: "(No Street)" option filters alerts with no street
+                            information</small>
                     </div>
                     <div class="input-group">
                         <label class="checkbox-label">
                             <input type="checkbox" id="verified-only-filter" checked>
                             <span>✓ Show only verified alerts</span>
                         </label>
-                        <small class="filter-help-text">Verified = alerts with at least 1 thumbs up</small>
+                        <small class="filter-help-text">Show alerts with at least 1 thumbs up</small>
+                    </div>
+                    <div class="input-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="hume-highway-filter">
+                            <span>🛣️ Hume & Federal Highway Only</span>
+                        </label>
+                        <small class="filter-help-text">Automatically filters streets containing "Hume" or
+                            "Federal"</small>
                     </div>
                     <button id="reset-filters" class="btn btn-secondary">Reset Filters</button>
                 </div>
             </div>
 
             <div class="control-section">
-                <h3>📊 Statistics</h3>
+                <h3>📊 Step 3: Choose Render Option</h3>
                 <div class="stats-display">
                     <div class="stat-item">
                         <span class="stat-label">Total Alerts:</span>
@@ -99,17 +203,25 @@
                         <span class="stat-value" id="date-range">-</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">Avg Reliability:</span>
+                        <span class="stat-label">Average Alert Reliability:</span>
                         <span class="stat-value" id="avg-reliability">-</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-label">Mobile Cameras:</span>
-                        <span class="stat-value" id="mobile-cameras">-</span>
+                        <span class="stat-label">Average Alert Confidence:</span>
+                        <span class="stat-value" id="avg-confidence">-</span>
                     </div>
                     <div class="stat-item">
                         <span class="stat-label">Top City:</span>
                         <span class="stat-value" id="top-city">-</span>
                     </div>
+                </div>
+                <div class="button-group">
+                    <button id="render-map-btn" class="btn btn-render" disabled>
+                        🗺️ Render Alerts Over Time
+                    </button>
+                    <button id="render-map-single-day-btn" class="btn btn-render" disabled>
+                        📅 Render Alerts as Single Day
+                    </button>
                 </div>
             </div>
         </div>
@@ -118,40 +230,10 @@
         <div class="main-content">
             <!-- Map Container -->
             <div class="map-section">
-                <div class="map-header">
+                <div class="map-header" id="map-header">
                     <h3>🗺️ Alert Map</h3>
-                    <div class="map-controls">
-                        <button id="view-markers-btn" class="btn btn-secondary active">📍 Markers</button>
-                        <button id="reset-zoom-btn" class="btn btn-secondary">🔍 Reset Zoom</button>
-                    </div>
                 </div>
                 <div id="map"></div>
-            </div>
-
-            <!-- Timeline Section -->
-            <div class="timeline-section">
-                <h3>⏱️ Timeline Player</h3>
-                <div class="timeline-controls">
-                    <button id="play-pause-btn" class="btn btn-primary">▶ Play</button>
-                    <button id="reset-timeline-btn" class="btn btn-secondary">⏮ Reset</button>
-                    <div class="speed-control">
-                        <label for="playback-speed">Speed:</label>
-                        <select id="playback-speed">
-                            <option value="0.5">0.5x</option>
-                            <option value="1" selected>1x</option>
-                            <option value="2">2x</option>
-                            <option value="5">5x</option>
-                            <option value="10">10x</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="timeline-slider">
-                    <input type="range" id="timeline-range" min="0" max="100" value="0">
-                    <div class="timeline-info">
-                        <span id="current-time">-</span>
-                        <span id="timeline-progress">0 / 0 alerts</span>
-                    </div>
-                </div>
             </div>
 
             <!-- Alert List -->
@@ -175,6 +257,9 @@
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Leaflet.timeline JS -->
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.timeline@1.6.0/dist/leaflet.timeline.min.js"></script>
 
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>

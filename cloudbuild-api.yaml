@@ -1,0 +1,19 @@
+steps:
+  # Build the API Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-f'
+      - 'Dockerfile.api'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/waze-alerts-api'
+      - '.'
+
+  # Push the image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/waze-alerts-api'
+
+images:
+  - 'gcr.io/$PROJECT_ID/waze-alerts-api'

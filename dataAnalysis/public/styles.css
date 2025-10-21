@@ -118,9 +118,9 @@ header p {
     cursor: pointer;
 }
 
-/* Subtype & City Filter - Tag Selection UI */
+/* Subtype & Street Filter - Tag Selection UI */
 .subtype-filter-container,
-.city-filter-container {
+.street-filter-container {
     display: flex;
     flex-direction: column;
     gap: 8px;
@@ -265,27 +265,16 @@ header p {
     color: white;
 }
 
-.btn-primary:hover {
+.btn-primary:hover:not(:disabled) {
     background-color: var(--primary-hover);
     transform: translateY(-1px);
     box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
 }
 
-.btn-primary.playing {
-    background-color: var(--success-color);
-    animation: pulse-btn 2s ease-in-out infinite;
-}
-
-@keyframes pulse-btn {
-
-    0%,
-    100% {
-        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
-    }
-
-    50% {
-        box-shadow: 0 0 0 6px rgba(16, 185, 129, 0);
-    }
+.btn-primary:disabled {
+    background-color: #4b5563;
+    cursor: not-allowed;
+    opacity: 0.6;
 }
 
 .btn-secondary {
@@ -297,6 +286,30 @@ header p {
     background-color: #64748b;
     transform: translateY(-1px);
     box-shadow: var(--shadow);
+}
+
+.btn-render {
+    background: linear-gradient(135deg, #dc2626, #991b1b);
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 600;
+    padding: 16px 32px;
+    border: 2px solid rgba(220, 38, 38, 0.3);
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
+}
+
+.btn-render:hover:not(:disabled) {
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(220, 38, 38, 0.6);
+}
+
+.btn-render:disabled {
+    background: linear-gradient(135deg, #4b5563, #374151);
+    cursor: not-allowed;
+    opacity: 0.5;
+    border-color: rgba(75, 85, 99, 0.3);
+    box-shadow: none;
 }
 
 /* Statistics */
@@ -342,27 +355,26 @@ header p {
 }
 
 .map-section,
-.timeline-section,
 .alert-list-section {
     background: var(--card-bg);
     padding: 20px;
     border-radius: 8px;
     box-shadow: var(--shadow);
     border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
 }
 
+
+
 .map-section h3,
-.timeline-section h3,
 .alert-list-section h3 {
     margin-bottom: 15px;
     color: var(--text-primary);
+    transition: color 0.2s ease;
 }
 
 /* Map */
 .map-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     margin-bottom: 15px;
 }
 
@@ -370,89 +382,11 @@ header p {
     margin-bottom: 0;
 }
 
-.map-controls {
-    display: flex;
-    gap: 8px;
-}
-
-.map-controls .btn {
-    padding: 6px 12px;
-    font-size: 0.9rem;
-}
-
-.map-controls .btn.active {
-    background-color: var(--primary-color);
-    color: white;
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
-}
-
 #map {
-    height: 600px;
+    height: 800px;
     border-radius: 8px;
     border: 2px solid var(--border-color);
     box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
-}
-
-/* Timeline */
-.timeline-controls {
-    display: flex;
-    gap: 10px;
-    margin-bottom: 15px;
-    flex-wrap: wrap;
-    align-items: center;
-}
-
-.speed-control {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-left: auto;
-}
-
-.speed-control label {
-    font-size: 0.9rem;
-    font-weight: 500;
-}
-
-.timeline-slider {
-    margin-top: 15px;
-}
-
-#timeline-range {
-    width: 100%;
-    height: 8px;
-    -webkit-appearance: none;
-    appearance: none;
-    background: var(--border-color);
-    border-radius: 5px;
-    outline: none;
-}
-
-#timeline-range::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 20px;
-    height: 20px;
-    background: var(--primary-color);
-    cursor: pointer;
-    border-radius: 50%;
-}
-
-#timeline-range::-moz-range-thumb {
-    width: 20px;
-    height: 20px;
-    background: var(--primary-color);
-    cursor: pointer;
-    border-radius: 50%;
-    border: none;
-}
-
-.timeline-info {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 10px;
-    font-size: 0.9rem;
-    color: var(--text-secondary);
 }
 
 /* Alert List */
@@ -501,24 +435,6 @@ header p {
 .alert-item.selected {
     border-color: var(--primary-color);
     background-color: rgba(16, 185, 129, 0.15);
-}
-
-.alert-item.timeline-active {
-    border-color: var(--success-color);
-    background-color: rgba(16, 185, 129, 0.1);
-    animation: pulse 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse {
-
-    0%,
-    100% {
-        box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
-    }
-
-    50% {
-        box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
-    }
 }
 
 .alert-header {
@@ -619,15 +535,6 @@ header p {
     .alert-details {
         grid-template-columns: 1fr;
     }
-
-    .timeline-controls {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .speed-control {
-        margin-left: 0;
-    }
 }
 
 /* Scrollbar Styling */
@@ -658,6 +565,16 @@ header p {
 
 .button-group .btn {
     flex: 1;
+}
+
+/* Special styling for button groups in stats section */
+.stats-display+.button-group {
+    margin-top: 20px;
+    flex-direction: column;
+}
+
+.stats-display+.button-group .btn-render {
+    width: 100%;
 }
 
 .btn-warning {
@@ -826,4 +743,354 @@ header p {
 .flatpickr-time .flatpickr-time-separator,
 .flatpickr-time .flatpickr-am-pm {
     color: var(--text-primary);
+}
+
+/* Leaflet Timeline Slider Controls */
+.leaflet-control-layers-expanded,
+.leaflet-timeline-control {
+    background-color: rgba(30, 41, 59, 0.05);
+    backdrop-filter: blur(4px);
+    color: var(--text-primary);
+    border: 2px solid rgba(16, 185, 129, 0.5);
+    border-radius: 8px;
+    padding: 12px;
+    min-width: 400px;
+    max-width: 90%;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Position timeline control at bottom right */
+.leaflet-bottom.leaflet-right {
+    width: 100%;
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 10px 10px 10px;
+}
+
+.leaflet-bottom.leaflet-right .leaflet-timeline-control {
+    width: auto;
+    max-width: 80%;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: nowrap;
+}
+
+/* Timeline slider input */
+.time-slider,
+.leaflet-timeline-control input[type="range"] {
+    width: 300px;
+    flex-shrink: 1;
+    min-width: 200px;
+    margin: 0;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    background: var(--border-color);
+    border-radius: 3px;
+    outline: none;
+}
+
+.time-slider::-webkit-slider-thumb,
+.leaflet-timeline-control input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.time-slider::-moz-range-thumb,
+.leaflet-timeline-control input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.time-slider:hover::-webkit-slider-thumb,
+.leaflet-timeline-control input[type="range"]:hover::-webkit-slider-thumb {
+    background: var(--primary-hover);
+}
+
+.time-slider:hover::-moz-range-thumb,
+.leaflet-timeline-control input[type="range"]:hover::-moz-range-thumb {
+    background: var(--primary-hover);
+}
+
+/* Timeline text display */
+.time-text,
+.leaflet-timeline-control .time-text {
+    color: #000000;
+    text-align: center;
+    padding: 6px 8px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: visible;
+    min-width: fit-content;
+    flex-shrink: 0;
+}
+
+/* Timeline buttons container */
+.leaflet-timeline-control .button-container {
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.leaflet-timeline-control button {
+    display: inline-block;
+    margin: 0;
+    padding: 6px 10px;
+    background-color: rgba(16, 185, 129, 0.2);
+    color: var(--text-primary);
+    border: 1px solid var(--primary-color);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.leaflet-timeline-control button:hover {
+    background-color: rgba(16, 185, 129, 0.4);
+    border-color: var(--primary-hover);
+}
+
+.leaflet-timeline-control button:disabled {
+    background-color: rgba(51, 65, 85, 0.2);
+    border-color: var(--border-color);
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.leaflet-bar {
+    background-color: var(--card-bg);
+    border: 1px solid var(--border-color);
+}
+
+.leaflet-bar a {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.leaflet-bar a:hover {
+    background-color: var(--hover-bg);
+}
+
+.leaflet-control-zoom a,
+.leaflet-control-layers-toggle {
+    background-color: var(--card-bg);
+    color: var(--text-primary);
+}
+
+.leaflet-control-zoom a:hover,
+.leaflet-control-layers-toggle:hover {
+    background-color: var(--hover-bg);
+}
+
+/* Disclaimer Modal Styles */
+.disclaimer-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10000;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.disclaimer-modal.hidden {
+    display: none;
+}
+
+.disclaimer-content {
+    background: linear-gradient(135deg, var(--card-bg), #2d3748);
+    border-radius: 12px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
+    border: 2px solid var(--primary-color);
+    animation: modalSlideIn 0.4s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px) scale(0.9);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.disclaimer-header {
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
+    color: white;
+    padding: 16px 24px;
+    border-radius: 10px 10px 0 0;
+    border-bottom: 2px solid rgba(16, 185, 129, 0.5);
+}
+
+.disclaimer-header h2 {
+    margin: 0;
+    font-size: 1.3rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.disclaimer-body {
+    padding: 20px 24px;
+    overflow-y: auto;
+    flex: 1;
+    color: var(--text-primary);
+    font-size: 0.9rem;
+}
+
+.disclaimer-body section {
+    margin-bottom: 16px;
+}
+
+.disclaimer-body section:last-of-type {
+    margin-bottom: 16px;
+}
+
+.disclaimer-body h3 {
+    color: var(--primary-color);
+    font-size: 1rem;
+    margin-bottom: 8px;
+    font-weight: 600;
+    border-left: 3px solid var(--primary-color);
+    padding-left: 10px;
+}
+
+.disclaimer-body p {
+    margin-bottom: 8px;
+    line-height: 1.5;
+    color: var(--text-secondary);
+}
+
+.disclaimer-body ul {
+    margin-left: 18px;
+    margin-bottom: 8px;
+    color: var(--text-secondary);
+}
+
+.disclaimer-body li {
+    margin-bottom: 4px;
+    line-height: 1.4;
+}
+
+.disclaimer-warning {
+    background: rgba(16, 185, 129, 0.1);
+    border: 2px solid var(--primary-color);
+    border-radius: 6px;
+    padding: 12px;
+    margin-top: 12px;
+    color: var(--primary-color) !important;
+    font-size: 0.95rem;
+    text-align: center;
+}
+
+.disclaimer-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border-color);
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 0 0 10px 10px;
+    display: flex;
+    justify-content: center;
+}
+
+.btn-large {
+    padding: 12px 32px;
+    font-size: 1rem;
+    font-weight: 600;
+    min-width: 200px;
+    transition: all 0.3s ease;
+}
+
+.btn-large:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+}
+
+.btn-large:active {
+    transform: translateY(0);
+}
+
+/* Blur effect for main content when modal is shown */
+body.disclaimer-active .container {
+    filter: blur(8px);
+    pointer-events: none;
+    user-select: none;
+}
+
+/* Scrollbar styling for disclaimer content */
+.disclaimer-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.disclaimer-body::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+}
+
+.disclaimer-body::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+.disclaimer-body::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-hover);
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    .disclaimer-content {
+        max-width: 95%;
+        max-height: 85vh;
+    }
+
+    .disclaimer-header h2 {
+        font-size: 1.1rem;
+    }
+
+    .disclaimer-body {
+        padding: 16px;
+        font-size: 0.85rem;
+    }
+
+    .disclaimer-body h3 {
+        font-size: 0.95rem;
+    }
+
+    .btn-large {
+        min-width: 180px;
+        padding: 10px 24px;
+        font-size: 0.95rem;
+    }
 }

@@ -35,3 +35,13 @@ func NewFirestoreClient(ctx context.Context, projectID, collectionName string) (
 func (fc *FirestoreClient) Close() error {
 	return fc.client.Close()
 }
+
+// GetClient returns the underlying Firestore client (for batch operations)
+func (fc *FirestoreClient) GetClient() *firestore.Client {
+	return fc.client
+}
+
+// GetCollectionName returns the collection name
+func (fc *FirestoreClient) GetCollectionName() string {
+	return fc.collectionName
+}

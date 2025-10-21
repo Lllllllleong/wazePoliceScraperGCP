@@ -209,3 +209,90 @@ func (fc *FirestoreClient) GetPoliceAlertsByDateRange(ctx context.Context, start
 	log.Printf("Retrieved %d police alerts from Firestore", len(alerts))
 	return alerts, nil
 }
+
+// GetPoliceAlertsByDatesWithFilters retrieves police alerts for multiple specific dates with optional filters
+// Each date should be in YYYY-MM-DD format. The function queries alerts active on each date
+// and applies optional subtype and street filters.
+func (fc *FirestoreClient) GetPoliceAlertsByDatesWithFilters(ctx context.Context, dates []string, subtypes []string, streets []string) ([]models.PoliceAlert, error) {
+	if len(dates) == 0 {
+		return nil, fmt.Errorf("at least one date is required")
+	}
+
+	log.Printf("Querying police alerts for %d dates with filters (subtypes: %v, streets: %v)", len(dates), subtypes, streets)
+
+	// Use a map to deduplicate alerts by UUID across multiple date queries
+	alertsMap := make(map[string]models.PoliceAlert)
+
+	// Query alerts for each date
+	for _, dateStr := range dates {
+		// Parse the date string (YYYY-MM-DD) explicitly in UTC to avoid timezone issues
+		dayStart, err := time.ParseInLocation("2006-01-02", dateStr, time.UTC)
+		if err != nil {
+			log.Printf("Invalid date format '%s': %v", dateStr, err)
+			continue
+		}
+
+		// Set end time to end of day (still in UTC)
+		dayEnd := dayStart.Add(24*time.Hour - time.Second)
+
+		log.Printf("Querying alerts for %s (expire_time >= %s AND publish_time <= %s)",
+			dateStr, dayStart.Format("2006-01-02 15:04:05"), dayEnd.Format("2006-01-02 15:04:05"))
+
+		// Query alerts where:
+		// - expire_time >= start of day (alert is still active at start of day)
+		// - publish_time <= end of day (alert was published by end of day)
+		query := fc.client.Collection(fc.collectionName).
+			Where("expire_time", ">=", dayStart).
+			Where("publish_time", "<=", dayEnd)
+
+		docs, err := query.Documents(ctx).GetAll()
+		if err != nil {
+			log.Printf("Failed to query police alerts for %s: %v", dateStr, err)
+			continue
+		}
+
+		log.Printf("Retrieved %d documents for %s", len(docs), dateStr)
+
+		// Process documents and deduplicate
+		for _, doc := range docs {
+			var alert models.PoliceAlert
+			if err := doc.DataTo(&alert); err != nil {
+				log.Printf("Failed to parse alert %s: %v", doc.Ref.ID, err)
+				continue
+			}
+
+			// Apply filters
+			if len(subtypes) > 0 && !contains(subtypes, alert.Subtype) {
+				continue
+			}
+
+			if len(streets) > 0 && !contains(streets, alert.Street) {
+				continue
+			}
+
+			// Add to map (deduplicates by UUID)
+			if _, exists := alertsMap[alert.UUID]; !exists {
+				alertsMap[alert.UUID] = alert
+			}
+		}
+	}
+
+	// Convert map to slice
+	alerts := make([]models.PoliceAlert, 0, len(alertsMap))
+	for _, alert := range alertsMap {
+		alerts = append(alerts, alert)
+	}
+
+	log.Printf("Retrieved %d unique police alerts from Firestore after filtering", len(alerts))
+	return alerts, nil
+}
+
+// contains checks if a string slice contains a specific value
+func contains(slice []string, value string) bool {
+	for _, item := range slice {
+		if item == value {
+			return true
+		}
+	}
+	return false
+}

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Waze Alerts API Tester</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        input,
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            font-family: 'Courier New', monospace;
+            resize: vertical;
+        }
+
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        .response {
+            margin-top: 30px;
+        }
+
+        .response-header {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            border: 1px solid #e5e7eb;
+        }
+
+        .success {
+            color: #059669;
+            font-weight: 600;
+        }
+
+        .error {
+            color: #dc2626;
+            font-weight: 600;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #2563eb;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #333;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🚓 Waze Alerts API Tester</h1>
+        <p class="subtitle">Test the police alerts API endpoint</p>
+
+        <div class="form-group">
+            <label for="apiUrl">API Endpoint URL:</label>
+            <input type="text" id="apiUrl" placeholder="https://your-service.run.app/api/alerts"
+                value="http://localhost:8080/api/alerts" />
+        </div>
+
+        <div class="form-group">
+            <label for="requestBody">Request Body (JSON):</label>
+            <textarea id="requestBody" rows="8" placeholder='{"dates": ["2025-10-20"]}'>{
+  "dates": ["2025-10-20"],
+  "subtypes": [],
+  "streets": []
+}</textarea>
+        </div>
+
+        <button id="sendRequest" onclick="sendRequest()">Send Request</button>
+
+        <div class="response" id="responseSection" style="display: none;">
+            <div class="response-header">Response:</div>
+            <div id="statusMessage"></div>
+            <div id="statsSection"></div>
+            <pre id="responseBody"></pre>
+        </div>
+    </div>
+
+    <script>
+        async function sendRequest() {
+            const apiUrl = document.getElementById('apiUrl').value;
+            const requestBodyText = document.getElementById('requestBody').value;
+            const button = document.getElementById('sendRequest');
+            const responseSection = document.getElementById('responseSection');
+            const statusMessage = document.getElementById('statusMessage');
+            const responseBody = document.getElementById('responseBody');
+            const statsSection = document.getElementById('statsSection');
+
+            // Validate inputs
+            if (!apiUrl) {
+                alert('Please enter an API URL');
+                return;
+            }
+
+            let requestBody;
+            try {
+                requestBody = JSON.parse(requestBodyText);
+            } catch (e) {
+                alert('Invalid JSON in request body: ' + e.message);
+                return;
+            }
+
+            // Disable button and show loading
+            button.disabled = true;
+            button.textContent = 'Sending...';
+            responseSection.style.display = 'block';
+            statusMessage.innerHTML = '⏳ Sending request...';
+            responseBody.textContent = '';
+            statsSection.innerHTML = '';
+
+            const startTime = Date.now();
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                const duration = Date.now() - startTime;
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    statusMessage.innerHTML = `<span class="success">✅ Success (${duration}ms)</span>`;
+
+                    // Show stats
+                    if (data.stats) {
+                        statsSection.innerHTML = `
+                            <div class="stats">
+                                <div class="stat-card">
+                                    <div class="stat-label">Total Alerts</div>
+                                    <div class="stat-value">${data.stats.total_alerts || 0}</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-label">Dates Queried</div>
+                                    <div class="stat-value">${(data.stats.dates_queried || []).length}</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-label">Response Time</div>
+                                    <div class="stat-value">${duration}ms</div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                } else {
+                    statusMessage.innerHTML = `<span class="error">❌ Error: ${data.message || 'Request failed'}</span>`;
+                }
+
+                responseBody.textContent = JSON.stringify(data, null, 2);
+
+            } catch (error) {
+                const duration = Date.now() - startTime;
+                statusMessage.innerHTML = `<span class="error">❌ Error (${duration}ms): ${error.message}</span>`;
+                responseBody.textContent = error.stack || error.toString();
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Send Request';
+            }
+        }
+
+        // Allow Enter key in textarea (Ctrl+Enter to submit)
+        document.getElementById('requestBody').addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                sendRequest();
+            }
+        });
+    </script>
+</body>
+
+</html>

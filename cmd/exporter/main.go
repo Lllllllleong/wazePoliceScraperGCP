@@ -47,13 +47,13 @@ func main() {
 	}
 	defer firestoreClient.Close()
 
-	// Parse dates
-	start, err := time.Parse("2006-01-02", *startDate)
+	// Parse dates in UTC to avoid timezone issues
+	start, err := time.ParseInLocation("2006-01-02", *startDate, time.UTC)
 	if err != nil {
 		log.Fatalf("Invalid start date format: %v", err)
 	}
 
-	end, err := time.Parse("2006-01-02", *endDate)
+	end, err := time.ParseInLocation("2006-01-02", *endDate, time.UTC)
 	if err != nil {
 		log.Fatalf("Invalid end date format: %v", err)
 	}
