@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - master
       - main
     paths:
       - 'cmd/alerts-service/**'
@@ -40,8 +41,8 @@ jobs:
       - name: Run Go Linter
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.55
-          args: --timeout=3m ./cmd/alerts-service/... ./internal/...
+          version: latest
+          args: --timeout=5m ./cmd/alerts-service/... ./internal/...
 
       - name: Run Unit Tests
         run: go test -v --cover ./...
