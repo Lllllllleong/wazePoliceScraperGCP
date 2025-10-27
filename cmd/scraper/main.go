@@ -116,7 +116,11 @@ func makeScraperHandler(bboxes []string) http.HandlerFunc {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
+		if err := json.NewEncoder(w).Encode(response); err != nil {
+			log.Printf("Error encoding response: %v", err)
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+			return
+		}
 
 		log.Printf("✅ Successfully scraped and saved %d police alerts (out of %d total alerts)", policeCount, len(alerts))
 	}
