@@ -53,6 +53,7 @@ jobs:
         with:
           workload_identity_provider: "projects/807773831037/locations/global/workloadIdentityPools/github/providers/my-repo"
           service_account: "github-actions-runner@wazepolicescrapergcp.iam.gserviceaccount.com"
+          token_format: 'access_token'
 
       - name: Login to Artifact Registry
         uses: docker/login-action@v3
