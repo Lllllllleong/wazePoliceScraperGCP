@@ -133,7 +133,10 @@ func (s *server) alertsHandler(w http.ResponseWriter, r *http.Request) {
 	writerDone := make(chan struct{})
 	go func() {
 		for data := range dataChan {
-			w.Write(data)
+			if _, err := w.Write(data); err != nil {
+				log.Printf("Error writing response: %v", err)
+				return // Stop writing if there's an error
+			}
 			flusher.Flush()
 		}
 		close(writerDone)
