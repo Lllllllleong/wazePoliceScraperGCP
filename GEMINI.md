@@ -1,61 +1,64 @@
-# Gemini Code Assistant Context
+# Project Overview
 
-This document provides context for the Gemini Code Assistant to understand the Waze Police Scraper GCP project.
+This project is a Go-based system for scraping, storing, and analyzing police alerts from Waze's live traffic data. It consists of several microservices for scraping, serving, and archiving data. The system collects police presence alerts and provides an interactive web interface for analyzing and visualizing the data. All data is stored in Google Cloud Firestore.
 
-## Project Overview
+## Technologies Used
 
-This project is a cloud-based system for scraping, storing, and analyzing police alerts from Waze's live traffic data. It consists of three main components:
+*   **Backend:** Go
+*   **Frontend:** HTML, CSS, JavaScript
+*   **Database:** Google Cloud Firestore
+*   **Deployment:** Docker, Google Cloud Build, Google Cloud Run
+*   **Mapping:** Leaflet.js
+*   **Date Picker:** Flatpickr
 
-1.  **Scraper Service:** A Go-based Cloud Run service that fetches police alerts from the Waze API on a scheduled basis.
-2.  **Data Analysis Dashboard:** An interactive web interface for visualizing and analyzing police alert patterns. There are two implementations: a production-ready vanilla JavaScript version and a React prototype.
+## Architecture
 
-All data is stored in Google Cloud Firestore.
+The project follows a microservices architecture:
+
+*   **Scraper Service:** A Cloud Run service that fetches police alerts from the Waze API on a scheduled basis.
+*   **Alerts Service:** An API that serves police alert data to the frontend dashboard.
+*   **Archive Service:** A service for archiving old police alert data.
+*   **Data Analysis Dashboard:** An interactive web interface for visualizing and analyzing police alert patterns.
 
 ## Building and Running
 
-### Backend (Go)
-
-**Prerequisites:**
+### Prerequisites
 
 *   Go 1.21+
-*   Google Cloud Platform account with a configured project.
+*   Google Cloud Platform account
+*   Firebase CLI
 
-**Environment Variables:**
+### Installation
 
-Create a `.env` file in the project root:
+1.  Install Go dependencies:
+    ```bash
+    go mod download
+    ```
 
-```bash
-GCP_PROJECT_ID=your-project-id
-FIRESTORE_COLLECTION=police_alerts
-WAZE_BBOXES="150.388,-34.255,151.009,-33.938;149.589,-34.769,150.830,-34.139"
-```
+### Running Locally
 
-**Running Locally:**
-
-*   **Scraper:**
+1.  Run the scraper locally:
     ```bash
     export GCP_PROJECT_ID=your-project-id
     export FIRESTORE_COLLECTION=police_alerts
     go run cmd/scraper/main.go
     ```
 
-**Deployment:**
+### Deployment
 
-The project is deployed to Google Cloud Run. Deployment scripts are available in the `scripts` directory.
-
-*   `./scripts/deploy.sh`: Deploys the scraper service.
-
-
-### Frontend (JavaScript)
-
-The vanilla JavaScript dashboard is located in `dataAnalysis/public/`. It can be opened directly in a browser or deployed to a static hosting service like Firebase Hosting.
-
-The React prototype is in `dataAnalysis/react-prototype/` and can be run using `npm install` and `npm run dev`.
+1.  Deploy the scraper service:
+    ```bash
+    ./scripts/deploy.sh
+    ```
+2.  Deploy the dashboard to Firebase Hosting:
+    ```bash
+    cd dataAnalysis
+    firebase deploy --only hosting
+    ```
 
 ## Development Conventions
 
-*   **Go:** The backend is written in Go. Code is organized into `cmd` for executables and `internal` for shared packages.
-*   **Frontend:** The production dashboard uses vanilla JavaScript, while a React/TypeScript prototype is also available.
-*   **Configuration:** Configuration is managed through environment variables and YAML files (e.g., `configs/bboxes.yaml`).
-*   **Security:** Security is a key consideration, with detailed documentation in `SECURITY_CONFIG.md`.
-*   **Deployment:** Deployment is automated via shell scripts and Google Cloud Build.
+*   **Code Style:** The project follows standard Go and JavaScript conventions.
+*   **Data Model:** Police alert data is stored in a Firestore collection. The data model is defined in `internal/models/alert.go`.
+*   **Configuration:** Configuration is managed through environment variables. A `.env.example` file is provided as a template.
+*   **API:** The API for the alerts service is defined in `cmd/alerts-service/main.go`.
