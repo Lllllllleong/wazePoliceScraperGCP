@@ -1,4 +1,4 @@
-name: Alerts Service CI/CD
+name: Scraper Service CI/CD
 
 on:
   workflow_dispatch:
@@ -7,22 +7,22 @@ on:
       - master
       - main
     paths:
-      - 'cmd/alerts-service/**'
+      - 'cmd/scraper/**'
       - 'internal/**'
       - 'go.mod'
       - 'go.sum'
-      - 'Dockerfile.alerts'
-      - '.github/workflows/alerts-service-ci-cd.yml'
+      - 'Dockerfile'
+      - '.github/workflows/scraper-service-ci-cd.yml'
 
 env:
   GCP_PROJECT_ID: "wazepolicescrapergcp"
   GAR_LOCATION: "us-central1"
-  SERVICE_NAME: "alerts-service"
+  SERVICE_NAME: "scraper-service"
   REGION: "us-central1"
 
 jobs:
   build-and-deploy:
-    name: Build and Deploy Alerts Service
+    name: Build and Deploy Scraper Service
     runs-on: ubuntu-latest
 
     permissions:
@@ -42,7 +42,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
-          args: --timeout=5m ./cmd/alerts-service/... ./internal/...
+          args: --timeout=5m ./cmd/scraper/... ./internal/...
 
       - name: Run Unit Tests
         run: go test -v --cover ./...
@@ -69,7 +69,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: Dockerfile.alerts
+          file: Dockerfile
           push: true
           tags: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
           cache-from: type=gha
