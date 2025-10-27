@@ -1,0 +1,35 @@
+# Use the official Golang image to create a build artifact.
+# This is a multi-stage build, so we'll use a temporary image for building.
+FROM golang:1.24 as builder
+
+# Set the working directory inside the container.
+WORKDIR /app
+
+# Copy the Go module files and download dependencies.
+# This is done in a separate step to leverage Docker's layer caching.
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy the rest of the application's source code.
+COPY . .
+
+# Build the Go application.
+# CGO_ENABLED=0 is used to build a statically linked binary.
+# -v is for verbose output.
+# -o specifies the output file name.
+RUN CGO_ENABLED=0 GOOS=linux go build -v -o alerts-service ./cmd/alerts-service
+
+# Start a new, lightweight stage from the alpine image.
+FROM alpine:latest
+
+# Set the working directory.
+WORKDIR /root/
+
+# Copy the built binary from the builder stage.
+COPY --from=builder /app/alerts-service .
+
+# Expose port 8080 to the outside world.
+EXPOSE 8080
+
+# Command to run the executable.
+ENTRYPOINT ["./alerts-service"]

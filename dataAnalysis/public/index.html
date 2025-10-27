@@ -28,6 +28,12 @@
             </div>
             <div class="disclaimer-body">
                 <section>
+                    <h3>🛑 Data Collection Terminated</h3>
+                    <p><strong style="color: #dc2626;">IMPORTANT: The near-real-time data feed was permanently halted as of October 31, 2025.</strong></p>
+                    <p>Upon further review, the data collection methodology was found to violate Waze's Terms of Service. Consequently, new data will only be available until October 31, 2025. The existing data is retained for educational and analytical purposes.</p>
+                </section>
+
+                <section>
                     <h3>Educational & Portfolio Purpose</h3>
                     <p>This application is an experimental educational project created solely for learning purposes and
                         as a technical portfolio demonstration. It is not intended for commercial use, public
@@ -115,7 +121,13 @@
         <!-- Header -->
         <header>
             <h1>Police Alert Analysis</h1>
-            <p>Near real-time analysis of police alerts in Sydney-Canberra region</p>
+            <p class="header-subtitle">
+                Near real-time analysis of police alerts in the Sydney-Canberra region.<br>
+                <br>
+                <strong style="color: var(--warning-color);">⚠️ Data Availability:</strong> Data feed discontinued as of Oct 31, 2025.<br>
+                - Dates available in the calendar represent a full day of continuously sampled data. <br>
+                - Days that are unavailable for selection, indicate that the data does not completely represent a whole day of activity.
+            </p>
         </header>
 
         <!-- Controls Panel -->
@@ -124,7 +136,7 @@
                 <h3>📅 Step 1: Select Dates to Load</h3>
                 <div class="time-controls">
                     <div class="input-group">
-                        <label for="date-picker">Select Days (maximum 14 days):</label>
+                        <label for="date-picker">Select Days (maximum 7 days):</label>
                         <input type="text" id="date-picker" placeholder="Click to select dates..." readonly>
                     </div>
                     <div class="selected-dates-info">
@@ -249,11 +261,6 @@
             </div>
         </div>
     </div>
-
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>

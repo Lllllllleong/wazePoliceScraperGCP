@@ -1,0 +1,39 @@
+substitutions:
+  _GCS_BUCKET_NAME: wazepolicescrapergcp-archive
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      [
+        'build',
+        '-t',
+        'gcr.io/$PROJECT_ID/alerts-service',
+        '-f',
+        'Dockerfile.alerts',
+        '.',
+      ]
+
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/alerts-service']
+
+  # Deploy container image to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      [
+        'run',
+        'deploy',
+        'alerts-service',
+        '--image',
+        'gcr.io/$PROJECT_ID/alerts-service',
+        '--platform',
+        'managed',
+        '--region',
+        'us-central1',
+        '--allow-unauthenticated',
+        '--set-env-vars',
+        'GCP_PROJECT_ID=$PROJECT_ID,FIRESTORE_COLLECTION=police_alerts,GCS_BUCKET_NAME=${_GCS_BUCKET_NAME}',
+      ]
+images:
+  - gcr.io/$PROJECT_ID/alerts-service

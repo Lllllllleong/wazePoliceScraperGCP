@@ -1,8 +1,8 @@
 :root {
-    --primary-color: #10b981;
-    --primary-hover: #059669;
-    --secondary-color: #22c55e;
-    --success-color: #10b981;
+    --primary-color: #4300af;
+    --primary-hover: #2563eb;
+    --secondary-color: #60a5fa;
+    --success-color: #3b82f6;
     --danger-color: #ef4444;
     --warning-color: #f59e0b;
     --bg-color: #0f172a;
@@ -36,13 +36,13 @@ body {
 
 /* Header */
 header {
-    background: linear-gradient(135deg, var(--primary-color), #059669);
+    background: linear-gradient(135deg, var(--primary-color), #1e40af);
     color: white;
     padding: 30px;
     border-radius: 12px;
     margin-bottom: 30px;
     box-shadow: var(--shadow-lg);
-    border: 1px solid rgba(16, 185, 129, 0.3);
+    border: 1px solid rgba(59, 130, 246, 0.3);
 }
 
 header h1 {
@@ -111,7 +111,7 @@ header p {
 .input-group select:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 .input-group input[type="range"] {
@@ -149,7 +149,7 @@ header p {
     align-items: center;
     gap: 6px;
     padding: 4px 8px;
-    background: linear-gradient(135deg, var(--primary-color), #059669);
+    background: linear-gradient(135deg, var(--primary-color), #1e40af);
     color: white;
     border-radius: 4px;
     font-size: 0.85rem;
@@ -268,7 +268,7 @@ header p {
 .btn-primary:hover:not(:disabled) {
     background-color: var(--primary-hover);
     transform: translateY(-1px);
-    box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
 }
 
 .btn-primary:disabled {
@@ -332,7 +332,7 @@ header p {
     background: var(--bg-color);
     border-radius: 6px;
     border-left: 3px solid var(--primary-color);
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.1);
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.1);
 }
 
 .stat-label {
@@ -409,7 +409,7 @@ header p {
 #search-box:focus {
     outline: none;
     border-color: var(--primary-color);
-    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 .alert-list {
@@ -428,13 +428,13 @@ header p {
 
 .alert-item:hover {
     border-color: var(--primary-color);
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.3);
     transform: translateX(5px);
 }
 
 .alert-item.selected {
     border-color: var(--primary-color);
-    background-color: rgba(16, 185, 129, 0.15);
+    background-color: rgba(59, 130, 246, 0.15);
 }
 
 .alert-header {
@@ -751,7 +751,7 @@ header p {
     background-color: rgba(30, 41, 59, 0.05);
     backdrop-filter: blur(4px);
     color: var(--text-primary);
-    border: 2px solid rgba(16, 185, 129, 0.5);
+    border: 2px solid rgba(59, 130, 246, 0.5);
     border-radius: 8px;
     padding: 12px;
     min-width: 400px;
@@ -851,7 +851,7 @@ header p {
     display: inline-block;
     margin: 0;
     padding: 6px 10px;
-    background-color: rgba(16, 185, 129, 0.2);
+    background-color: rgba(59, 130, 246, 0.2);
     color: var(--text-primary);
     border: 1px solid var(--primary-color);
     border-radius: 4px;
@@ -862,7 +862,7 @@ header p {
 }
 
 .leaflet-timeline-control button:hover {
-    background-color: rgba(16, 185, 129, 0.4);
+    background-color: rgba(59, 130, 246, 0.4);
     border-color: var(--primary-hover);
 }
 
@@ -951,7 +951,7 @@ header p {
     color: white;
     padding: 16px 24px;
     border-radius: 10px 10px 0 0;
-    border-bottom: 2px solid rgba(16, 185, 129, 0.5);
+    border-bottom: 2px solid rgba(59, 130, 246, 0.5);
 }
 
 .disclaimer-header h2 {
@@ -1006,7 +1006,7 @@ header p {
 }
 
 .disclaimer-warning {
-    background: rgba(16, 185, 129, 0.1);
+    background: rgba(59, 130, 246, 0.1);
     border: 2px solid var(--primary-color);
     border-radius: 6px;
     padding: 12px;
@@ -1035,7 +1035,7 @@ header p {
 
 .btn-large:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.4);
 }
 
 .btn-large:active {
@@ -1093,4 +1093,9 @@ body.disclaimer-active .container {
         padding: 10px 24px;
         font-size: 0.95rem;
     }
-}
+}.header-subtitle {
+    font-size: 1.0em;
+    color: var(--text-secondary);
+    margin-top: 10px;
+    line-height: 1.5;
+} 

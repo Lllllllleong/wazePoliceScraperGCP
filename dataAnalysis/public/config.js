@@ -1,27 +1,7 @@
-// Firebase Configuration (using compat SDK)
-// No imports needed - loaded via script tags in HTML
-
-window.firebaseConfig = {
-    apiKey: "AIzaSyAQEJlaNkj9kBmxUU7L1JYTn9LlbgTAWQc",
-    authDomain: "wazepolicescrapergcp.firebaseapp.com",
-    projectId: "wazepolicescrapergcp",
-    storageBucket: "wazepolicescrapergcp.firebasestorage.app",
-    messagingSenderId: "807773831037",
-    appId: "1:807773831037:web:b80c7ceaa8306276ad5614",
-    measurementId: "G-6RXKVX9N9H"
-};
-
-// Firestore collection name
-window.COLLECTION_NAME = "police_alerts";
-
 // API Configuration
-// Set this to your deployed Cloud Function URL
-// For local development, use: http://localhost:8080/api/alerts
-// For production, use your Cloud Run URL: https://your-service-url.run.app/api/alerts
 window.API_CONFIG = {
-    alertsEndpoint: "https://waze-alerts-api-u6cjbro2iq-uc.a.run.app/api/alerts",
-    useAPI: true, // Set to true to use API, false to use direct Firestore access (legacy)
-    timeout: 30000 // Request timeout in milliseconds
+    alertsEndpoint: "https://alerts-service-807773831037.us-central1.run.app/police_alerts",
+    timeout: 60000 // Increased timeout for streaming
 };
 
 // Map configuration
@@ -34,11 +14,20 @@ window.MAP_CONFIG = {
 
 // Marker colors based on alert subtype (for verified alerts)
 window.SUBTYPE_COLORS = {
-    'POLICE_WITH_MOBILE_CAMERA': '#8bf5ffff', // Red
-    'POLICE_VISIBLE': '#0051ffff', // Blue
-    'POLICE_HIDING': '#ff0000ff', // Purple
-    '': '#0051ffff', // Blue for general police alerts (empty subtype)
+    'POLICE_WITH_MOBILE_CAMERA': '#4cccffff', // Cyan
+    'POLICE_VISIBLE': '#0004ffff', // Blue
+    'POLICE_HIDING': '#ff0000ff', // Red
+    '': '#0004ffff', // Blue for general police alerts (empty subtype)
     'default': '#64748b' // Gray fallback
+};
+
+// Emoji icons for each subtype (displayed on top of colored circles)
+window.SUBTYPE_EMOJIS = {
+    'POLICE_WITH_MOBILE_CAMERA': '📷',  // Camera icon
+    'POLICE_VISIBLE': '👮',             // Police officer
+    'POLICE_HIDING': '🕵️',              // Detective
+    '': '',                             // No emoji for general alerts
+    'default': '🚓'                     // Fallback police car
 };
 
 // Unverified alert color (grayscale)

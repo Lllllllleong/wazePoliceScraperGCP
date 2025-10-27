@@ -8,13 +8,6 @@
 //     console.debug = noop;
 // })();
 
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-const auth = firebase.auth();
-
-
-
 // Global state
 let allAlerts = []; // Will store alerts as array
 let alertsMap = new Map(); // Map for deduplication using UUID as key
@@ -30,17 +23,11 @@ let timelineControl = null; // Timeline slider control
 
 // Constants for date range
 // TODO: Ideally, MIN_DATE should be derived by querying the earliest "publish_time" 
-// Timestamp field in the entire Firestore collection, but we've hardcoded it for now
+// Timestamp field in the database, but we've hardcoded it for now
 const MIN_DATE = '2025-09-26';
-// Get today's date in YYYY-MM-DD format in local timezone
-const getToday = () => {
-    const today = new Date();
-    return today.getFullYear() + '-' +
-        String(today.getMonth() + 1).padStart(2, '0') + '-' +
-        String(today.getDate()).padStart(2, '0');
-};
-const MAX_DATE = getToday(); // Current date in local timezone
-const MAX_SELECTABLE_DATES = 14; // Maximum number of dates that can be selected
+// Scraper was halted on 31/10/2025 due to Waze Terms of Service violation
+const TERMINATION_DATE = '2025-10-31'; // Date of scraper termination
+const MAX_SELECTABLE_DATES = 7; // Maximum number of dates that can be selected (reduced due to large data size)
 
 // Helper function to format dates as dd-mm-yyyy HH:MM:SS
 function formatDateDDMMYYYY(date, includeTime = true) {
@@ -60,6 +47,29 @@ function formatDateDDMMYYYY(date, includeTime = true) {
     const seconds = String(d.getSeconds()).padStart(2, '0');
 
     return `${day}-${month}-${year} ${hours}:${minutes}:${seconds}`;
+}
+
+/**
+ * Parses a timestamp from various formats to milliseconds since epoch.
+ * @param {string|number|Date} timestamp - The timestamp to parse.
+ * @returns {number} - The timestamp in milliseconds since epoch, or 0 if invalid.
+ */
+function parseTimestamp(timestamp) {
+    if (!timestamp) return 0;
+
+    // If it's already a number (milliseconds), return it
+    if (typeof timestamp === 'number') return timestamp;
+
+    // If it's a string (ISO 8601 / RFC3339), parse it
+    if (typeof timestamp === 'string') {
+        const date = new Date(timestamp);
+        return date.getTime();
+    }
+
+    // If it's a Date object
+    if (timestamp instanceof Date) return timestamp.getTime();
+
+    return 0;
 }
 
 // Disclaimer Modal Handling
@@ -111,16 +121,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Show welcome message
     const alertList = document.getElementById('alert-list');
-    alertList.innerHTML = '<p class="loading-message">� Welcome! Please select dates above and click "Load Data" to begin.</p>';
-
-    // Sign in anonymously for Firestore read access
-    try {
-        await auth.signInAnonymously();
-        console.log('✅ Authenticated with Firebase');
-    } catch (error) {
-        console.error('❌ Authentication error:', error);
-        showError(`Failed to authenticate: ${error.message}<br><br>Please check your Firebase configuration and ensure Anonymous authentication is enabled.`);
-    }
+    alertList.innerHTML = '<p class="loading-message">👋 Welcome! Please select dates above and click "Load Data" to begin.</p>';
 });
 
 // Initialize Leaflet map
@@ -136,15 +137,16 @@ function initMap() {
 
 // Initialize Flatpickr date picker
 function initDatePicker() {
-    // Get today's date in local timezone to ensure it's always selectable
+    // Determine the max selectable date
     const today = new Date();
-    const localToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const terminationDate = new Date(TERMINATION_DATE);
+    const maxDate = today < terminationDate ? today : terminationDate;
 
     flatpickrInstance = flatpickr('#date-picker', {
         mode: 'multiple',
         dateFormat: 'Y-m-d',
         minDate: MIN_DATE,
-        maxDate: localToday, // Use local date object instead of ISO string to avoid timezone issues
+        maxDate: maxDate, 
         inline: false,
         disable: [
             '2025-10-03', // Hardcoded unavailable date
@@ -198,7 +200,7 @@ function updateSelectedDatesDisplay() {
     }
 }
 
-// Load alerts from Firestore for selected dates
+// Load alerts from API for selected dates
 async function loadAlertsForSelectedDates() {
     if (selectedDates.length === 0) {
         alert('Please select at least one date');
@@ -216,12 +218,7 @@ async function loadAlertsForSelectedDates() {
     alertList.innerHTML = '<p class="loading-message">📡 Loading alerts from API...</p>';
 
     try {
-        // Check if we should use API or legacy Firestore
-        if (window.API_CONFIG && window.API_CONFIG.useAPI) {
-            await loadAlertsFromAPI();
-        } else {
-            await loadAlertsFromFirestore();
-        }
+        await loadAlertsFromAPI();
 
         if (allAlerts.length === 0) {
             alertList.innerHTML = '<p class="loading-message" style="color: var(--warning-color);">⚠️ No alerts found for selected dates.</p>';
@@ -252,293 +249,139 @@ async function loadAlertsForSelectedDates() {
         console.error('❌ Error loading alerts:', error);
         let errorMessage = `Error loading alerts: ${error.message}`;
 
-        if (error.code === 'permission-denied') {
-            errorMessage += '<br><br>Please ensure:<br>1. Firestore rules are deployed<br>2. Anonymous authentication is enabled';
-        } else if (error.code === 'failed-precondition') {
-            errorMessage += '<br><br>Missing Firestore index. Check console for index creation link.';
-        }
-
         alertList.innerHTML = `<p class="loading-message" style="color: var(--danger-color);">❌ ${errorMessage}</p>`;
         loadingStatus.style.display = 'none';
         loadBtn.disabled = false;
     }
 }
 
-// Load alerts from API (new method)
+// Load alerts from API (non-streaming method for simplicity)
 async function loadAlertsFromAPI() {
     const loadingMessage = document.getElementById('loading-message');
-    loadingMessage.textContent = `Loading alerts from API for ${selectedDates.length} date(s)...`;
+    const totalAlertsCounter = document.getElementById('total-alerts');
+    loadingMessage.textContent = `Fetching data for ${selectedDates.length} date(s)...`;
+    totalAlertsCounter.textContent = '0';
 
-    console.log('Loading alerts via API for dates (in Canberra timezone):', selectedDates);
-
-    // Convert Canberra dates to UTC date range
-    // When user selects "2025-10-20", they mean Oct 20 in Canberra (AEDT/AEST)
-    // We need to send the API the UTC dates that cover this Canberra day
-
-    const utcDates = [];
-    for (const dateStr of selectedDates) {
-        // Parse as local Canberra date
-        const localDate = new Date(dateStr + 'T00:00:00');
-        const nextDay = new Date(localDate.getTime() + 24 * 60 * 60 * 1000);
-
-        // Get the UTC dates that overlap with this Canberra day
-        // For Canberra (UTC+10/+11), we need to include the previous UTC day too
-        const startUTC = new Date(localDate);
-        startUTC.setUTCHours(0, 0, 0, 0);
-        startUTC.setDate(startUTC.getDate() - 1); // Include previous UTC day
-
-        const endUTC = new Date(nextDay);
-        endUTC.setUTCHours(0, 0, 0, 0);
-
-        // Add all UTC dates in this range
-        const currentUTC = new Date(startUTC);
-        while (currentUTC <= endUTC) {
-            const utcDateStr = currentUTC.toISOString().split('T')[0];
-            if (!utcDates.includes(utcDateStr)) {
-                utcDates.push(utcDateStr);
-            }
-            currentUTC.setDate(currentUTC.getDate() + 1);
-        }
-    }
-
-    console.log('Converted to UTC dates for API query:', utcDates);
-
-    // Prepare request body
-    const requestBody = {
-        dates: utcDates, // Send UTC dates to API
-        // Note: We don't send subtypes/streets filters here as they're applied client-side
-        // to allow dynamic filtering without re-fetching data
-    };
-
-    // Make API request
-    const response = await fetch(window.API_CONFIG.alertsEndpoint, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-        signal: AbortSignal.timeout(window.API_CONFIG.timeout || 30000)
-    });
-
-    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: response.statusText }));
-        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-
-    if (!data.success) {
-        throw new Error(data.message || 'API request failed');
-    }
-
-    console.log(`✅ API returned ${data.alerts.length} alerts for UTC dates ${utcDates.join(', ')}`);
-    console.log('📊 Stats:', data.stats);
+    console.log('Fetching alerts via new API for dates:', selectedDates);
 
     // Clear existing data
     alertsMap.clear();
+    allAlerts = [];
 
-    // Process alerts from API response and filter to Canberra timezone days
-    data.alerts.forEach(alert => {
-        // Check if this alert was active during any of the selected Canberra days
-        const publishTime = parseTimestamp(alert.publish_time || alert.PublishTime);
-        const expireTime = parseTimestamp(alert.expire_time || alert.ExpireTime);
+    const datesParam = selectedDates.join(',');
+    const url = `${window.API_CONFIG.alertsEndpoint}?dates=${datesParam}`;
 
-        let isInSelectedDays = false;
-        for (const dateStr of selectedDates) {
-            const localDate = new Date(dateStr + 'T00:00:00');
-            const dayStart = localDate.getTime();
-            const dayEnd = dayStart + 24 * 60 * 60 * 1000 - 1;
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            signal: AbortSignal.timeout(window.API_CONFIG.timeout || 60000)
+        });
 
-            // Alert is active during this Canberra day if it overlaps
-            if (expireTime >= dayStart && publishTime <= dayEnd) {
-                isInSelectedDays = true;
+        if (response.status === 429) {
+            throw new Error('⏱️ Too many requests. Please wait a moment and try again.');
+        }
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        loadingMessage.textContent = 'Processing data stream...';
+        
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) {
                 break;
             }
+
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop(); // Keep the last partial line in the buffer
+
+            for (const line of lines) {
+                if (line.trim() === '') continue;
+
+                try {
+                    const rawAlert = JSON.parse(line);
+                    const processedAlert = {
+                        id: rawAlert.UUID,
+                        UUID: rawAlert.UUID,
+                        Type: rawAlert.Type,
+                        Subtype: rawAlert.Subtype || '',
+                        Street: rawAlert.Street || '',
+                        City: rawAlert.City || '',
+                        Country: rawAlert.Country,
+                        LocationGeo: rawAlert.LocationGeo || { latitude: 0, longitude: 0 },
+                        Reliability: rawAlert.Reliability,
+                        Confidence: rawAlert.Confidence,
+                        PublishTime: new Date(rawAlert.PublishTime).getTime(),
+                        ExpireTime: new Date(rawAlert.ExpireTime).getTime(),
+                        ScrapeTime: new Date(rawAlert.ScrapeTime).getTime(),
+                        ActiveMillis: rawAlert.ActiveMillis,
+                        LastVerificationMillis: rawAlert.LastVerificationMillis ? new Date(rawAlert.LastVerificationMillis).getTime() : null,
+                        NThumbsUpLast: rawAlert.NThumbsUpLast,
+                        ReportRating: rawAlert.ReportRating
+                    };
+
+                    // Deduplication
+                    const existingAlert = alertsMap.get(processedAlert.UUID);
+                    if (!existingAlert || processedAlert.ExpireTime > existingAlert.ExpireTime) {
+                        alertsMap.set(processedAlert.UUID, processedAlert);
+                    }
+                    
+                    // Update counter
+                    totalAlertsCounter.textContent = alertsMap.size;
+
+                } catch (e) {
+                    console.warn('Failed to parse a line of JSONL:', e, 'Line:', line);
+                }
+            }
         }
 
-        if (!isInSelectedDays) {
-            return; // Skip this alert - not in selected Canberra days
+        // Process any remaining data in the buffer
+        if (buffer.trim() !== '') {
+            try {
+                const rawAlert = JSON.parse(buffer);
+                const processedAlert = {
+                    id: rawAlert.UUID,
+                    UUID: rawAlert.UUID,
+                    Type: rawAlert.Type,
+                    Subtype: rawAlert.Subtype || '',
+                    Street: rawAlert.Street || '',
+                    City: rawAlert.City || '',
+                    Country: rawAlert.Country,
+                    LocationGeo: rawAlert.LocationGeo || { latitude: 0, longitude: 0 },
+                    Reliability: rawAlert.Reliability,
+                    Confidence: rawAlert.Confidence,
+                    PublishTime: new Date(rawAlert.PublishTime).getTime(),
+                    ExpireTime: new Date(rawAlert.ExpireTime).getTime(),
+                    ScrapeTime: new Date(rawAlert.ScrapeTime).getTime(),
+                    ActiveMillis: rawAlert.ActiveMillis,
+                    LastVerificationMillis: rawAlert.LastVerificationMillis ? new Date(rawAlert.LastVerificationMillis).getTime() : null,
+                    NThumbsUpLast: rawAlert.NThumbsUpLast,
+                    ReportRating: rawAlert.ReportRating
+                };
+                const existingAlert = alertsMap.get(processedAlert.UUID);
+                if (!existingAlert || processedAlert.ExpireTime > existingAlert.ExpireTime) {
+                    alertsMap.set(processedAlert.UUID, processedAlert);
+                }
+                totalAlertsCounter.textContent = alertsMap.size;
+            } catch (e) {
+                console.warn('Failed to parse final buffer content:', e, 'Buffer:', buffer);
+            }
         }
 
-        // Convert the PoliceAlert from backend to frontend format
-        const processedAlert = {
-            id: alert.uuid || alert.UUID,
-            UUID: alert.uuid || alert.UUID,
-            Type: alert.type || alert.Type,
-            Subtype: alert.subtype || alert.Subtype || '',
-            Street: alert.street || alert.Street || '',
-            City: alert.city || alert.City || '',
-            Country: alert.country || alert.Country || '',
+        allAlerts = Array.from(alertsMap.values());
+        console.log(`📦 Processed ${allAlerts.length} unique alerts.`);
+        totalAlertsCounter.textContent = allAlerts.length;
 
-            // Handle LocationGeo - backend uses location_geo with LatLng format
-            LocationGeo: alert.location_geo || alert.LocationGeo || { latitude: 0, longitude: 0 },
-
-            Reliability: alert.reliability || alert.Reliability || 0,
-            Confidence: alert.confidence || alert.Confidence || 0,
-
-            // Convert time fields - backend sends as RFC3339 strings, convert to milliseconds
-            PublishTime: publishTime,
-            ExpireTime: expireTime,
-            ScrapeTime: parseTimestamp(alert.scrape_time || alert.ScrapeTime),
-
-            // Duration and verification (already in correct format from backend)
-            ActiveMillis: alert.active_millis || alert.ActiveMillis || 0,
-            LastVerificationMillis: alert.last_verification_millis || alert.LastVerificationMillis || null,
-
-            NThumbsUpLast: alert.n_thumbs_up_last || alert.NThumbsUpLast || 0,
-            ReportRating: alert.report_rating || alert.ReportRating || 0
-        };
-
-        alertsMap.set(processedAlert.UUID, processedAlert);
-    });
-
-    // Convert map to array
-    allAlerts = Array.from(alertsMap.values());
-
-    console.log(`📦 Processed ${allAlerts.length} unique alerts from API`);
-
-    // Debug: Log first alert to verify conversion
-    if (allAlerts.length > 0) {
-        console.log('✅ First alert parsed (verifying timestamp conversion):');
-        console.log('  - UUID:', allAlerts[0].UUID);
-        console.log('  - PublishTime (ms):', allAlerts[0].PublishTime, '→', new Date(allAlerts[0].PublishTime).toISOString());
-        console.log('  - ExpireTime (ms):', allAlerts[0].ExpireTime, '→', new Date(allAlerts[0].ExpireTime).toISOString());
-        console.log('  - ActiveMillis:', allAlerts[0].ActiveMillis, 'ms (', (allAlerts[0].ActiveMillis / 60000).toFixed(1), 'minutes)');
+    } catch (error) {
+        console.error('Failed to fetch or process alerts:', error);
+        loadingMessage.textContent = `Error: ${error.message}`;
+        throw error;
     }
-}
-
-// Helper function to parse timestamps from API (RFC3339 strings or Firestore timestamps)
-function parseTimestamp(timestamp) {
-    if (!timestamp) return 0;
-
-    // If it's already a number (milliseconds), return it
-    if (typeof timestamp === 'number') return timestamp;
-
-    // If it's a string (ISO 8601 / RFC3339), parse it
-    if (typeof timestamp === 'string') {
-        const date = new Date(timestamp);
-        return date.getTime();
-    }
-
-    // If it's a Firestore Timestamp object
-    if (timestamp.toMillis) return timestamp.toMillis();
-    if (timestamp.seconds) return timestamp.seconds * 1000;
-
-    // If it's a Date object
-    if (timestamp instanceof Date) return timestamp.getTime();
-
-    return 0;
-}
-
-// Load alerts from Firestore (legacy method - kept for backward compatibility)
-async function loadAlertsFromFirestore() {
-    const loadingMessage = document.getElementById('loading-message');
-
-    // Sort dates chronologically
-    const sortedDates = [...selectedDates].sort();
-    console.log('Loading alerts from Firestore for dates:', sortedDates);
-
-    let totalFetched = 0;
-    let duplicatesSkipped = 0;
-
-    // Iterate through each selected date
-    for (let i = 0; i < sortedDates.length; i++) {
-        const dateStr = sortedDates[i];
-        loadingMessage.textContent = `Loading day ${i + 1} of ${sortedDates.length}: ${dateStr}...`;
-
-        // Convert Canberra date (YYYY-MM-DD) to UTC timestamps
-        // User selects "2025-10-20" meaning 2025-10-20 in Canberra timezone (AEDT/AEST)
-        // Parse the date in local timezone, then convert to UTC for Firestore query
-        const localDate = new Date(dateStr + 'T00:00:00'); // Parses in local timezone
-        const dayStart = new Date(localDate.getTime()); // Start of day in local timezone
-        const dayEnd = new Date(localDate.getTime() + 24 * 60 * 60 * 1000 - 1); // End of day in local timezone
-
-        console.log(`Querying alerts for ${dateStr} in Canberra time (${dayStart.toISOString()} to ${dayEnd.toISOString()} UTC)`);
-
-        // Query alerts where:
-        // - expire_time >= start of day (alert is still active at start of day)
-        // - publish_time <= end of day (alert was published by end of day)
-        const snapshot = await db.collection(COLLECTION_NAME)
-            .where('publish_time', '<=', dayEnd)
-            .where('expire_time', '>=', dayStart)
-            .get();
-
-        console.log(`📦 Received ${snapshot.docs.length} documents for ${dateStr}`);
-
-        // Process documents and deduplicate using Map
-        snapshot.docs.forEach(doc => {
-            const data = doc.data();
-            const uuid = data.uuid || data.UUID;
-
-            if (!uuid) {
-                console.warn('Alert without UUID:', doc.id);
-                return;
-            }
-
-            // Check if we already have this alert
-            if (alertsMap.has(uuid)) {
-                duplicatesSkipped++;
-                return;
-            }
-
-            // Helper function to convert Firestore Timestamp to milliseconds
-            const toMillis = (timestamp) => {
-                if (!timestamp) return null;
-                // Firestore Timestamp objects have a toMillis() method
-                if (timestamp.toMillis) return timestamp.toMillis();
-                // If it's already a number, return it
-                if (typeof timestamp === 'number') return timestamp;
-                // If it's a Date object, convert it
-                if (timestamp instanceof Date) return timestamp.getTime();
-                return null;
-            };
-
-            // Add new alert to map
-            const alert = {
-                id: doc.id,
-                UUID: uuid,
-                Type: data.type || data.Type,
-                Subtype: data.subtype || data.Subtype || '',
-                Street: data.street || data.Street || '',
-                City: data.city || data.City || '',
-                Country: data.country || data.Country || '',
-                // Note: location_geo is the correct field name from Firestore
-                LocationGeo: data.location_geo || data.LocationGeo || { latitude: 0, longitude: 0 },
-                Reliability: data.reliability || data.Reliability || 0,
-                Confidence: data.confidence || data.Confidence || 0,
-
-                // Convert Firestore Timestamps to milliseconds for timeline compatibility
-                PublishTime: toMillis(data.publish_time) || toMillis(data.PublishTime) || 0,
-                ExpireTime: toMillis(data.expire_time) || toMillis(data.ExpireTime) || 0,
-                ScrapeTime: toMillis(data.scrape_time) || toMillis(data.ScrapeTime) || 0,
-
-                // These are already milliseconds in Firestore (int64)
-                ActiveMillis: data.active_millis || data.ActiveMillis || 0,
-                LastVerificationMillis: data.last_verification_millis || data.LastVerificationMillis || null,
-
-                NThumbsUpLast: data.n_thumbs_up_last || data.NThumbsUpLast || 0,
-                ReportRating: data.report_rating || data.ReportRating || 0
-            };
-
-            alertsMap.set(uuid, alert);
-            totalFetched++;
-
-            // Debug: Log first alert to verify timestamp conversion
-            if (totalFetched === 1) {
-                console.log('✅ First alert parsed (verifying timestamp conversion):');
-                console.log('  - UUID:', alert.UUID);
-                console.log('  - PublishTime (ms):', alert.PublishTime, '→', new Date(alert.PublishTime).toISOString());
-                console.log('  - ExpireTime (ms):', alert.ExpireTime, '→', new Date(alert.ExpireTime).toISOString());
-                console.log('  - ActiveMillis:', alert.ActiveMillis, 'ms (', (alert.ActiveMillis / 60000).toFixed(1), 'minutes)');
-            }
-        });
-    }
-
-    // Convert map to array
-    allAlerts = Array.from(alertsMap.values());
-
-    console.log(`✅ Loaded ${totalFetched} new alerts from Firestore, skipped ${duplicatesSkipped} duplicates`);
-    console.log(`📊 Total unique alerts in memory: ${allAlerts.length}`);
 }
 
 // Disable Stage 2 UI elements (Alert Filters)
@@ -772,7 +615,7 @@ function updateStreetTags() {
 
             tag.innerHTML = `
                 ${displayText}
-                <button class="tag-remove" onclick="removeStreet('${street.replace(/'/g, "\\'")}'')" aria-label="Remove ${displayText}">
+                <button class="tag-remove" onclick="removeStreet('${street.replace(/'/g, "\'")}')" aria-label="Remove ${displayText}">
                     ×
                 </button>
             `;
@@ -872,7 +715,7 @@ function initEventListeners() {
 function applyFilters() {
     // Clear map and re-enable render buttons when filters change
     clearMapAndEnableRenderButtons();
-    
+
     // Start with all loaded alerts
     filteredAlerts = [...allAlerts];
 
@@ -1118,15 +961,37 @@ function renderAlertsToMapSingleDay() {
                 color = UNVERIFIED_COLOR;
             }
 
-            // Create circle marker
-            const marker = L.circleMarker(latlng, {
-                radius: 8,
-                fillColor: color,
-                color: isVerified ? '#fff' : '#6b7280',
-                weight: 2,
-                fillOpacity: isVerified ? 0.8 : 0.5,
-                opacity: isVerified ? 1 : 0.7
+            // Get emoji for this subtype
+            const emoji = SUBTYPE_EMOJIS[subtype] || SUBTYPE_EMOJIS.default;
+
+            // Create custom div icon with colored circle background and emoji on top
+            const iconHtml = `
+                <div style="
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 50%;
+                    background-color: ${color};
+                    border: 2px solid ${isVerified ? '#fff' : '#6b7280'};
+                    opacity: ${isVerified ? '0.95' : '0.7'};
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 16px;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                ">
+                    ${emoji}
+                </div>
+            `;
+
+            const customIcon = L.divIcon({
+                html: iconHtml,
+                className: 'custom-emoji-marker',
+                iconSize: [32, 32],
+                iconAnchor: [16, 16],
+                popupAnchor: [0, -16]
             });
+
+            const marker = L.marker(latlng, { icon: customIcon });
 
             // Create popup content
             const verifiedBadge = isVerified
@@ -1136,9 +1001,9 @@ function renderAlertsToMapSingleDay() {
             const subtypeBadge = subtype === 'POLICE_WITH_MOBILE_CAMERA'
                 ? '📷 Mobile Camera'
                 : subtype === 'POLICE_VISIBLE'
-                    ? '👁️ Visible'
+                    ? '� Visible'
                     : subtype === 'POLICE_HIDING'
-                        ? '🔍 Hiding'
+                        ? '�️ Hiding'
                         : subtype === 'POLICE_ON_BRIDGE'
                             ? '🌉 On Bridge'
                             : subtype === 'POLICE_MOTORCYCLIST'
@@ -1326,15 +1191,37 @@ function renderAlertsToMap() {
                 color = UNVERIFIED_COLOR;
             }
 
-            // Create circle marker
-            const marker = L.circleMarker(latlng, {
-                radius: 8,
-                fillColor: color,
-                color: isVerified ? '#fff' : '#6b7280',
-                weight: 2,
-                fillOpacity: isVerified ? 0.8 : 0.5,
-                opacity: isVerified ? 1 : 0.7
+            // Get emoji for this subtype
+            const emoji = SUBTYPE_EMOJIS[subtype] || SUBTYPE_EMOJIS.default;
+
+            // Create custom div icon with colored circle background and emoji on top
+            const iconHtml = `
+                <div style="
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 50%;
+                    background-color: ${color};
+                    border: 2px solid ${isVerified ? '#fff' : '#6b7280'};
+                    opacity: ${isVerified ? '0.95' : '0.7'};
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 16px;
+                    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+                ">
+                    ${emoji}
+                </div>
+            `;
+
+            const customIcon = L.divIcon({
+                html: iconHtml,
+                className: 'custom-emoji-marker',
+                iconSize: [32, 32],
+                iconAnchor: [16, 16],
+                popupAnchor: [0, -16]
             });
+
+            const marker = L.marker(latlng, { icon: customIcon });
 
             // Create popup content
             const verifiedBadge = isVerified
@@ -1344,9 +1231,9 @@ function renderAlertsToMap() {
             const subtypeBadge = subtype === 'POLICE_WITH_MOBILE_CAMERA'
                 ? '📷 Mobile Camera'
                 : subtype === 'POLICE_VISIBLE'
-                    ? '👁️ Visible'
+                    ? '� Visible'
                     : subtype === 'POLICE_HIDING'
-                        ? '🔍 Hiding'
+                        ? '�️ Hiding'
                         : subtype === 'POLICE_ON_BRIDGE'
                             ? '🌉 On Bridge'
                             : subtype === 'POLICE_MOTORCYCLIST'
@@ -1508,7 +1395,7 @@ function updateStatistics() {
 // Clear map and re-enable render buttons (called when filters change)
 function clearMapAndEnableRenderButtons() {
     clearMap();
-    
+
     // Re-enable both render buttons
     const renderBtn = document.getElementById('render-map-btn');
     if (renderBtn) {
@@ -1655,12 +1542,6 @@ function exportFilteredData() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-}
-
-// Error handling
-function showError(message) {
-    const alertList = document.getElementById('alert-list');
-    alertList.innerHTML = `<p class="loading-message" style="color: var(--danger-color);">❌ ${message}</p>`;
 }
 
 // Map control functions
