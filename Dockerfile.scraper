@@ -11,7 +11,7 @@ RUN go mod download
 COPY . .
 
 # Build the scraper binary
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o scraper-service ./cmd/scraper-service
+RUN CGO_ENABLED=0 GOOS=linux go build -v -o scraper-service ./cmd/scraper-service
 
 # Final stage
 FROM alpine:latest
@@ -27,4 +27,4 @@ COPY --from=builder /app/scraper-service .
 EXPOSE 8080
 
 # Run the binary
-CMD ["./scraper-service"]
+ENTRYPOINT ["./scraper-service"]

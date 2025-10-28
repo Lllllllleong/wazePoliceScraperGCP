@@ -23,6 +23,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build -v -o archive-service ./cmd/archive-servic
 # Start a new stage from scratch for a smaller image
 FROM alpine:latest
 
+RUN apk --no-cache add ca-certificates
+
 WORKDIR /root/
 
 # Copy the Pre-built binary file from the previous stage
