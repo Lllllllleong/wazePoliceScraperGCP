@@ -39,3 +39,4 @@ Thumbs.db
 *.json
 *.jsonl
 !configs/*.json
+"dashboard-react-prototype/" 
