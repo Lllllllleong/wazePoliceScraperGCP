@@ -2,7 +2,7 @@
 REM Deployment script for Waze Scraper Cloud Run service (Windows)
 
 REM Configuration
-set SERVICE_NAME=waze-scraper
+set SERVICE_NAME=scraper-service
 set REGION=us-central1
 
 if "%FIRESTORE_COLLECTION%"=="" (

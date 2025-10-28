@@ -13,7 +13,7 @@ fi
 # Configuration
 PROJECT_ID="${GCP_PROJECT_ID:-your-project-id}"
 COLLECTION_NAME="${FIRESTORE_COLLECTION:-police_alerts}"
-SERVICE_NAME="waze-scraper"
+SERVICE_NAME="scraper-service"
 REGION="us-central1"
 
 echo "🚀 Deploying Waze Scraper to Cloud Run..."
