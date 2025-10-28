@@ -13,7 +13,7 @@ A live version of the data analysis dashboard is deployed and accessible here:
 
 **[https://policealert.whyhireleong.com/](https://policealert.whyhireleong.com/)**
 
-*(Note: Data collection was terminated on Oct 31, 2025, as the methodology was found to violate Waze's Terms of Service. The existing data is retained for demonstration and analysis.)*
+*(Note: Data collection is scheduled to conclude on Oct 31, 2025. Upon review, the collection methodology was found to be out of compliance with Waze's Terms of Service, prompting the scheduled termination of the data feed.)*
 
 ![Dashboard Demo](./assets/AlertDashboardWeekendDemo.gif)
 

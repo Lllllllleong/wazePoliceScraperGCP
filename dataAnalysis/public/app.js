@@ -25,8 +25,8 @@ let timelineControl = null; // Timeline slider control
 // TODO: Ideally, MIN_DATE should be derived by querying the earliest "publish_time" 
 // Timestamp field in the database, but we've hardcoded it for now
 const MIN_DATE = '2025-09-26';
-// Scraper was halted on 31/10/2025 due to Waze Terms of Service violation
-const TERMINATION_DATE = '2025-10-31'; // Date of scraper termination
+// Scraper operation is scheduled to conclude on 31/10/2025 due to a compliance review of Waze's Terms of Service.
+const COLLECTION_END_DATE = '2025-10-31'; // Scheduled end date for data collection
 const MAX_SELECTABLE_DATES = 7; // Maximum number of dates that can be selected (reduced due to large data size)
 
 // Helper function to format dates as dd-mm-yyyy HH:MM:SS
@@ -139,8 +139,8 @@ function initMap() {
 function initDatePicker() {
     // Determine the max selectable date
     const today = new Date();
-    const terminationDate = new Date(TERMINATION_DATE);
-    const maxDate = today < terminationDate ? today : terminationDate;
+    const collectionEndDate = new Date(COLLECTION_END_DATE);
+    const maxDate = today < collectionEndDate ? today : collectionEndDate;
 
     flatpickrInstance = flatpickr('#date-picker', {
         mode: 'multiple',
