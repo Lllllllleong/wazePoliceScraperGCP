@@ -87,7 +87,6 @@ jobs:
           env_vars: |
             GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID }}
             FIRESTORE_COLLECTION=police_alerts
-            GCS_BUCKET_NAME=wazepolicescrapergcp-archive
 
       - name: Output Deployed URL
         run: echo "Successfully deployed to ${{ steps.deploy.outputs.url }}"
