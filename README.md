@@ -11,7 +11,7 @@ A professional, cloud-native system for scraping, storing, and analyzing police 
 
 A live version of the data analysis dashboard is deployed and accessible here:
 
-**[https://wazepolicescrapergcp.web.app](https://wazepolicescrapergcp.web.app)**
+**[https://policealert.whyhireleong.com/](https://policealert.whyhireleong.com/)**
 
 *(Note: Data collection was terminated on Oct 31, 2025, as the methodology was found to violate Waze's Terms of Service. The existing data is retained for demonstration and analysis.)*
 
