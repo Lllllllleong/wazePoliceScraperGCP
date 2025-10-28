@@ -706,9 +706,6 @@ function initEventListeners() {
 
     // Search
     document.getElementById('search-box').addEventListener('input', onSearchInput);
-
-    // Export
-    document.getElementById('export-btn').addEventListener('click', exportFilteredData);
 }
 
 // Apply filters
@@ -1522,26 +1519,6 @@ function onSearchInput(e) {
         const alertItem = createAlertItem(alert, originalIndex);
         alertList.appendChild(alertItem);
     });
-}
-
-// Export filtered data
-function exportFilteredData() {
-    if (filteredAlerts.length === 0) {
-        alert('No data to export!');
-        return;
-    }
-
-    const dataStr = filteredAlerts.map(alert => JSON.stringify(alert)).join('\n');
-    const blob = new Blob([dataStr], { type: 'application/jsonl' });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `police_alerts_${new Date().toISOString().split('T')[0]}.jsonl`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
 }
 
 // Map control functions
