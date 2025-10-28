@@ -162,43 +162,43 @@ func (s *server) alertsHandler(w http.ResponseWriter, r *http.Request) {
 						if n > 0 {
 							buf = append(buf, readBuf[:n]...)
 
-							// Process complete lines
-							for {
-								lineEnd := -1
-								for i := 0; i < len(buf); i++ {
-									if buf[i] == '\n' {
-										lineEnd = i
+								// Process complete lines
+								for {
+									lineEnd := -1
+									for i := 0; i < len(buf); i++ {
+										if buf[i] == '\n' {
+											lineEnd = i
+											break
+										}
+									}
+
+									if lineEnd == -1 {
+										// No complete line yet
 										break
 									}
+
+									// Send complete line including newline
+									line := make([]byte, lineEnd+1)
+									copy(line, buf[:lineEnd+1])
+									dataChan <- line
+
+									// Remove processed line from buffer
+									buf = buf[lineEnd+1:]
 								}
-
-								if lineEnd == -1 {
-									// No complete line yet
-									break
 								}
-
-								// Send complete line including newline
-								line := make([]byte, lineEnd+1)
-								copy(line, buf[:lineEnd+1])
-								dataChan <- line
-
-								// Remove processed line from buffer
-								buf = buf[lineEnd+1:]
+							if readErr != nil {
+								// Send any remaining data
+								if len(buf) > 0 {
+									remaining := make([]byte, len(buf))
+									copy(remaining, buf)
+									dataChan <- remaining
+									if buf[len(buf)-1] != '\n' {
+										dataChan <- []byte("\n")
+									}
+								}
+								break
 							}
 						}
-						if readErr != nil {
-							// Send any remaining data
-							if len(buf) > 0 {
-								remaining := make([]byte, len(buf))
-								copy(remaining, buf)
-								dataChan <- remaining
-								if buf[len(buf)-1] != '\n' {
-									dataChan <- []byte("\n")
-								}
-							}
-							break
-						}
-					}
 					reader.Close()
 				} else if err == gcs.ErrObjectNotExist {
 					// Archive does not exist, query Firestore
@@ -206,23 +206,23 @@ func (s *server) alertsHandler(w http.ResponseWriter, r *http.Request) {
 					endOfDay := startOfDay.Add(24*time.Hour - time.Second)
 
 					var alerts []models.PoliceAlert
-					alerts, firestoreErr := s.firestoreClient.GetPoliceAlertsByDateRange(ctx, startOfDay, endOfDay)
-					if firestoreErr != nil {
-						log.Printf("Error getting alerts from Firestore for %s: %v", date.Format("2006-01-02"), firestoreErr)
+				alerts, firestoreErr := s.firestoreClient.GetPoliceAlertsByDateRange(ctx, startOfDay, endOfDay)
+				if firestoreErr != nil {
+					log.Printf("Error getting alerts from Firestore for %s: %v", date.Format("2006-01-02"), firestoreErr)
+					continue
+				}
+				for _, alert := range alerts {
+					jsonData, marshalErr := json.Marshal(alert)
+					if marshalErr != nil {
+						log.Printf("Error marshaling alert %s: %v", alert.UUID, marshalErr)
 						continue
 					}
-					for _, alert := range alerts {
-						jsonData, marshalErr := json.Marshal(alert)
-						if marshalErr != nil {
-							log.Printf("Error marshaling alert %s: %v", alert.UUID, marshalErr)
-							continue
-						}
-						dataChan <- jsonData
-						dataChan <- []byte("\n")
-					}
-				} else {
-					log.Printf("Error checking for archive %s: %v", fileName, err)
+					dataChan <- jsonData
+					dataChan <- []byte("\n")
 				}
+			} else {
+				log.Printf("Error checking for archive %s: %v", fileName, err)
+			}
 			}
 		}()
 	}
