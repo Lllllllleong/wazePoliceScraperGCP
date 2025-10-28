@@ -15,8 +15,7 @@ A live version of the data analysis dashboard is deployed and accessible here:
 
 *(Note: Data collection was terminated on Oct 31, 2025, as the methodology was found to violate Waze's Terms of Service. The existing data is retained for demonstration and analysis.)*
 
-![Dashboard Screenshot](https://i.imgur.com/your-screenshot-url.png) 
-*(A placeholder for a screenshot of the dashboard in action)*
+![Dashboard Demo](./assets/AlertDashboardWeekendDemo.gif)
 
 ---
 
