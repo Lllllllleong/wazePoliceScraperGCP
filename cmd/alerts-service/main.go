@@ -45,11 +45,6 @@ func main() {
 		log.Fatal("GCS_BUCKET_NAME environment variable not set")
 	}
 
-	allowedOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
-	if allowedOrigin == "" {
-		log.Fatal("CORS_ALLOWED_ORIGIN environment variable not set")
-	}
-
 	ctx := context.Background()
 	firestoreClient, err := storage.NewFirestoreClient(ctx, projectID, collectionName)
 	if err != nil {
@@ -71,15 +66,21 @@ func main() {
 
 	log.Printf("Starting Alerts Service on port %s", port)
 
-	http.HandleFunc("/police_alerts", corsMiddleware(s.alertsHandler, allowedOrigin))
+	http.HandleFunc("/police_alerts", corsMiddleware(s.alertsHandler))
 	http.HandleFunc("/health", healthHandler)
 	http.HandleFunc("/version", versionHandler)
 
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
-func corsMiddleware(next http.HandlerFunc, allowedOriginsStr string) http.HandlerFunc {
-	allowedOrigins := strings.Split(allowedOriginsStr, ",")
+func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	// WARNING: It is strongly recommended to use an environment variable for this list.
+	allowedOrigins := []string{
+		"https://wazepolicescrapergcp.web.app",
+		"https://wazepolicescrapergcp.firebaseapp.com",
+		"https://dashboard.whyhireleong.com",
+		"https://policealert.whyhireleong.com",
+	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
