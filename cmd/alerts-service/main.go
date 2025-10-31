@@ -78,10 +78,19 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
-func corsMiddleware(next http.HandlerFunc, allowedOrigin string) http.HandlerFunc {
+func corsMiddleware(next http.HandlerFunc, allowedOriginsStr string) http.HandlerFunc {
+	allowedOrigins := strings.Split(allowedOriginsStr, ",")
+
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
-		w.Header().Set("Vary", "Origin") // Best practice to prevent caching issues
+		origin := r.Header.Get("Origin")
+		for _, allowedOrigin := range allowedOrigins {
+			if origin == allowedOrigin {
+				w.Header().Set("Access-Control-Allow-Origin", origin)
+				break
+			}
+		}
+
+		w.Header().Set("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
