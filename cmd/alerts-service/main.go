@@ -68,6 +68,7 @@ func main() {
 
 	http.HandleFunc("/police_alerts", corsMiddleware(s.alertsHandler))
 	http.HandleFunc("/health", healthHandler)
+	http.HandleFunc("/version", versionHandler)
 
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
@@ -241,4 +242,9 @@ func (s *server) alertsHandler(w http.ResponseWriter, r *http.Request) {
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "OK")
+}
+
+func versionHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprintf(w, "v2")
 }
