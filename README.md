@@ -47,9 +47,9 @@ A live version of the data analysis dashboard is deployed and accessible here:
 
 The system is designed as a set of cooperating microservices deployed on Google Cloud Run. This serverless architecture ensures that resources are only consumed when a service is active, making it highly cost-effective.
 
-*   **`scraper-service`**: A Go application triggered by Cloud Scheduler to fetch data from Waze and save it to Firestore.
-*   **`alerts-service`**: A Go API that serves alert data to the frontend, intelligently fetching from GCS archives or live from Firestore.
-*   **`archive-service`**: A Go application triggered daily to move older data from Firestore to Google Cloud Storage for long-term archival.
+*   **`scraper-service`**: A Go application on Cloud Run, triggered by Cloud Scheduler, that fetches data from Waze and saves it to Firestore.
+*   **`alerts-service`**: A Go API on Cloud Run that serves alert data to the frontend, intelligently fetching from GCS archives or live from Firestore.
+*   **`archive-service`**: A Go application on Cloud Run, triggered daily by Cloud Scheduler, that moves older data from Firestore to Google Cloud Storage for long-term archival.
 
 For a detailed breakdown of the system design, data flow, and technology rationale, please see the **[Architecture Document](./ARCHITECTURE.md)**.
 
@@ -70,7 +70,7 @@ This project adheres to a high standard of documentation to demonstrate professi
 *   Go (1.21+)
 *   Google Cloud SDK (`gcloud`)
 *   Firebase CLI (`firebase-tools`)
-*   Docker
+*   Docker (for building and deploying containerized services)
 
 ### 1. Clone the Repository
 ```bash
@@ -83,7 +83,16 @@ Create a `.env` file in the root directory by copying the template:
 ```bash
 cp .env.example .env
 ```
-Edit the `.env` file and set your `GCP_PROJECT_ID`.
+Edit the `.env` file and set the following variables:
+
+| Variable             | Description                                                                 |
+|----------------------|-----------------------------------------------------------------------------|
+| `GCP_PROJECT_ID`     | Your Google Cloud project ID.                                               |
+| `FIRESTORE_COLLECTION` | The name of the Firestore collection to store police alerts.                |
+| `GCS_BUCKET_NAME`    | The name of the Google Cloud Storage bucket for archiving old alerts.       |
+| `WAZE_BBOXES`        | A comma-separated list of bounding boxes for Waze alert scraping.           |
+| `PORT`               | The port for the backend services to run on (defaults to 8080).             |
+
 
 ### 3. Authenticate with Google Cloud
 ```bash
@@ -106,9 +115,27 @@ The service will start on `http://localhost:8080`.
 The frontend is a simple static site.
 ```bash
 cd dataAnalysis
-firebase serve
+npm run serve
 ```
 The dashboard will be available at `http://localhost:5000`. You will need to update `dataAnalysis/public/config.js` to point to your local backend service for it to work.
+
+---
+
+## 📁 Project Structure
+```
+.
+├── cmd/                  # Main applications for the microservices
+│   ├── alerts-service/   # Serves alert data to the frontend
+│   ├── archive-service/  # Archives old data from Firestore to GCS
+│   └── scraper-service/  # Scrapes police alerts from Waze
+├── dataAnalysis/         # Frontend dashboard application
+├── internal/             # Shared Go packages
+│   ├── models/           # Data models for alerts and Waze API
+│   ├── storage/          # Firestore and GCS storage logic
+│   └── waze/             # Waze API client
+├── scripts/              # Deployment scripts
+└── .github/workflows/    # CI/CD workflows for GitHub Actions
+```
 
 ---
 
