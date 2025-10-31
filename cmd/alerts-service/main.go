@@ -45,6 +45,11 @@ func main() {
 		log.Fatal("GCS_BUCKET_NAME environment variable not set")
 	}
 
+	allowedOrigin := os.Getenv("CORS_ALLOWED_ORIGIN")
+	if allowedOrigin == "" {
+		log.Fatal("CORS_ALLOWED_ORIGIN environment variable not set")
+	}
+
 	ctx := context.Background()
 	firestoreClient, err := storage.NewFirestoreClient(ctx, projectID, collectionName)
 	if err != nil {
@@ -66,16 +71,17 @@ func main() {
 
 	log.Printf("Starting Alerts Service on port %s", port)
 
-	http.HandleFunc("/police_alerts", corsMiddleware(s.alertsHandler))
+	http.HandleFunc("/police_alerts", corsMiddleware(s.alertsHandler, allowedOrigin))
 	http.HandleFunc("/health", healthHandler)
 	http.HandleFunc("/version", versionHandler)
 
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
-func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
+func corsMiddleware(next http.HandlerFunc, allowedOrigin string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*") // Allow any origin
+		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
+		w.Header().Set("Vary", "Origin") // Best practice to prevent caching issues
 		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
@@ -102,6 +108,10 @@ func (s *server) alertsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	dateStrings := strings.Split(datesParam, ",")
+	if len(dateStrings) > 7 {
+		http.Error(w, "Query limited to a maximum of 7 dates.", http.StatusBadRequest)
+		return
+	}
 	var dates []time.Time
 	loc, _ := time.LoadLocation("Australia/Canberra")
 
