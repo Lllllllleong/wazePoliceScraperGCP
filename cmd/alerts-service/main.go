@@ -123,6 +123,7 @@ func (s *server) alertsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	var dates []time.Time
 	loc, _ := time.LoadLocation("Australia/Canberra")
+	cutoffDate, _ := time.ParseInLocation("2006-01-02", "2025-10-31", loc)
 
 	for _, ds := range dateStrings {
 		t, err := time.ParseInLocation("2006-01-02", ds, loc)
@@ -130,7 +131,16 @@ func (s *server) alertsHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, fmt.Sprintf("Invalid date format for '%s', use YYYY-MM-DD", ds), http.StatusBadRequest)
 			return
 		}
+		if t.After(cutoffDate) {
+			continue
+		}
 		dates = append(dates, t)
+	}
+
+	if len(dates) == 0 {
+		w.Header().Set("Content-Type", "application/jsonl")
+		w.WriteHeader(http.StatusOK)
+		return
 	}
 
 	sort.Slice(dates, func(i, j int) bool {
