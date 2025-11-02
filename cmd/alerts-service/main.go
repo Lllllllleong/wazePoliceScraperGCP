@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,12 +17,17 @@ import (
 	gcs "cloud.google.com/go/storage"
 	"github.com/Lllllllleong/wazePoliceScraperGCP/internal/models"
 	"github.com/Lllllllleong/wazePoliceScraperGCP/internal/storage"
+	"golang.org/x/time/rate"
 )
 
 type server struct {
 	firestoreClient *storage.FirestoreClient
 	storageClient   *gcs.Client
 	bucketName      string
+	// Rate limiting
+	limiters      map[string]*rate.Limiter
+	limitersMutex sync.RWMutex
+	ratePerMinute int
 }
 
 func main() {
@@ -45,6 +51,16 @@ func main() {
 		log.Fatal("GCS_BUCKET_NAME environment variable not set")
 	}
 
+	// Rate limiting configuration
+	rateLimit := os.Getenv("RATE_LIMIT_PER_MINUTE")
+	if rateLimit == "" {
+		rateLimit = "30"
+	}
+	ratePerMinute, err := strconv.Atoi(rateLimit)
+	if err != nil || ratePerMinute <= 0 {
+		log.Fatalf("Invalid RATE_LIMIT_PER_MINUTE: %s", rateLimit)
+	}
+
 	ctx := context.Background()
 	firestoreClient, err := storage.NewFirestoreClient(ctx, projectID, collectionName)
 	if err != nil {
@@ -62,11 +78,17 @@ func main() {
 		firestoreClient: firestoreClient,
 		storageClient:   storageClient,
 		bucketName:      bucketName,
+		limiters:        make(map[string]*rate.Limiter),
+		ratePerMinute:   ratePerMinute,
 	}
 
-	log.Printf("Starting Alerts Service on port %s", port)
+	// Start cleanup routine for old limiters
+	go s.cleanupLimiters()
 
-	http.HandleFunc("/police_alerts", corsMiddleware(s.alertsHandler))
+	log.Printf("Starting Alerts Service on port %s", port)
+	log.Printf("Rate limit: %d requests per minute per IP", ratePerMinute)
+
+	http.HandleFunc("/police_alerts", corsMiddleware(s.rateLimitMiddleware(s.alertsHandler)))
 	http.HandleFunc("/health", healthHandler)
 
 	log.Fatal(http.ListenAndServe(":"+port, nil))
@@ -100,6 +122,57 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		next(w, r)
+	}
+}
+
+func (s *server) getLimiter(ip string) *rate.Limiter {
+	s.limitersMutex.Lock()
+	defer s.limitersMutex.Unlock()
+
+	limiter, exists := s.limiters[ip]
+	if !exists {
+		// Create limiter: rate per minute = events per second
+		limiter = rate.NewLimiter(rate.Limit(float64(s.ratePerMinute)/60.0), s.ratePerMinute)
+		s.limiters[ip] = limiter
+	}
+	return limiter
+}
+
+func (s *server) rateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Get client IP - Cloud Run sets X-Forwarded-For
+		ip := r.Header.Get("X-Forwarded-For")
+		if ip == "" {
+			ip = r.RemoteAddr
+		} else {
+			// X-Forwarded-For can be "client, proxy1, proxy2" - take first
+			ips := strings.Split(ip, ",")
+			ip = strings.TrimSpace(ips[0])
+		}
+
+		limiter := s.getLimiter(ip)
+
+		if !limiter.Allow() {
+			w.Header().Set("Retry-After", "60")
+			http.Error(w, "Rate limit exceeded. Maximum "+strconv.Itoa(s.ratePerMinute)+" requests per minute.", http.StatusTooManyRequests)
+			log.Printf("Rate limit exceeded for IP: %s", ip)
+			return
+		}
+
+		next(w, r)
+	}
+}
+
+func (s *server) cleanupLimiters() {
+	ticker := time.NewTicker(1 * time.Hour)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		s.limitersMutex.Lock()
+		// Clear all limiters - they'll be recreated on next request
+		s.limiters = make(map[string]*rate.Limiter)
+		s.limitersMutex.Unlock()
+		log.Println("Cleaned up rate limiters")
 	}
 }
 
