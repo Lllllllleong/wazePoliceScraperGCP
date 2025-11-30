@@ -140,8 +140,6 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		"https://wazepolicescrapergcp.firebaseapp.com",
 		"https://dashboard.whyhireleong.com",
 		"https://policealert.whyhireleong.com",
-		"http://localhost:5000", // Local Firebase emulator
-		"http://127.0.0.1:5000", // Local Firebase emulator
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
