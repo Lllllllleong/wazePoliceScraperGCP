@@ -1,6 +1,7 @@
 package main
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -87,11 +88,49 @@ func main() {
 
 	log.Printf("Starting Alerts Service on port %s", port)
 	log.Printf("Rate limit: %d requests per minute per IP", ratePerMinute)
-
-	http.HandleFunc("/police_alerts", corsMiddleware(s.rateLimitMiddleware(s.alertsHandler)))
+	http.HandleFunc("/police_alerts", corsMiddleware(s.rateLimitMiddleware(gzipMiddleware(s.alertsHandler))))
 	http.HandleFunc("/health", healthHandler)
 
 	log.Fatal(http.ListenAndServe(":"+port, nil))
+}
+
+type gzipResponseWriter struct {
+	*gzip.Writer
+	http.ResponseWriter
+}
+
+func (w *gzipResponseWriter) Write(b []byte) (int, error) {
+	return w.Writer.Write(b)
+}
+
+func (w *gzipResponseWriter) Header() http.Header {
+	return w.ResponseWriter.Header()
+}
+
+func (w *gzipResponseWriter) WriteHeader(statusCode int) {
+	w.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (w *gzipResponseWriter) Flush() {
+	w.Writer.Flush()
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+func gzipMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			next(w, r)
+			return
+		}
+		w.Header().Set("Content-Encoding", "gzip")
+		w.Header().Set("Vary", "Accept-Encoding")
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+		gzw := &gzipResponseWriter{Writer: gz, ResponseWriter: w}
+		next(gzw, r)
+	}
 }
 
 func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
@@ -345,5 +384,3 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprintf(w, "OK")
 }
-
-

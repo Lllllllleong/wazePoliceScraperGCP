@@ -40,3 +40,10 @@ Thumbs.db
 *.jsonl
 !configs/*.json
 "dashboard-react-prototype/" 
+
+# Local testing artifacts
+service.log
+set-env.sh
+dataAnalysis/public/config.local.js
+dataAnalysis/public/index.local.html
+serve-frontend.py

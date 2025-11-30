@@ -1,8 +1,21 @@
 // API Configuration
+// Auto-detect local vs production
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
 window.API_CONFIG = {
-    alertsEndpoint: "https://alerts-service-807773831037.us-central1.run.app/police_alerts",
+    alertsEndpoint: isLocalhost 
+        ? "http://localhost:8080/police_alerts"  // Local backend
+        : "https://alerts-service-807773831037.us-central1.run.app/police_alerts",  // Production
     timeout: 60000 // Increased timeout for streaming
 };
+
+// Log which backend we're using
+if (isLocalhost) {
+    console.log('🔧 LOCAL MODE: Using backend at http://localhost:8080');
+    console.log('⚠️ Make sure alerts-service is running locally!');
+} else {
+    console.log('🌐 PRODUCTION MODE: Using Cloud Run backend');
+}
 
 // Map configuration
 window.MAP_CONFIG = {
