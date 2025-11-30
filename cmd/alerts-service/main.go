@@ -140,6 +140,8 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		"https://wazepolicescrapergcp.firebaseapp.com",
 		"https://dashboard.whyhireleong.com",
 		"https://policealert.whyhireleong.com",
+		"http://localhost:5000", // Local Firebase emulator
+		"http://127.0.0.1:5000", // Local Firebase emulator
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -235,7 +237,7 @@ func (s *server) alertsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	var dates []time.Time
 	loc, _ := time.LoadLocation("Australia/Canberra")
-	cutoffDate, _ := time.ParseInLocation("2006-01-02", "2025-10-31", loc)
+	cutoffDate, _ := time.ParseInLocation("2006-01-02", "2025-11-30", loc)
 
 	for _, ds := range dateStrings {
 		t, err := time.ParseInLocation("2006-01-02", ds, loc)

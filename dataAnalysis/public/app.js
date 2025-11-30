@@ -25,8 +25,8 @@ let timelineControl = null; // Timeline slider control
 // TODO: Ideally, MIN_DATE should be derived by querying the earliest "publish_time" 
 // Timestamp field in the database, but we've hardcoded it for now
 const MIN_DATE = '2025-09-26';
-// Scraper operation is scheduled to conclude on 31/10/2025 due to a compliance review of Waze's Terms of Service.
-const COLLECTION_END_DATE = '2025-10-31'; // Scheduled end date for data collection
+// Scraper operation is scheduled to conclude on 30/11/2025 due to a compliance review of Waze's Terms of Service.
+const COLLECTION_END_DATE = '2025-11-30'; // Scheduled end date for data collection
 const MAX_SELECTABLE_DATES = 7; // Maximum number of dates that can be selected (reduced due to large data size)
 
 // Helper function to format dates as dd-mm-yyyy HH:MM:SS
