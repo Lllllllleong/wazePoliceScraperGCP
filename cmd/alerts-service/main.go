@@ -8,10 +8,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	_ "time/tzdata"
 
@@ -20,6 +22,16 @@ import (
 	"github.com/Lllllllleong/wazePoliceScraperGCP/internal/storage"
 	"golang.org/x/time/rate"
 )
+
+// Metrics for buffer performance testing
+type requestMetrics struct {
+	bufferGrows    atomic.Int64
+	channelBlocks  atomic.Int64
+	linesProcessed atomic.Int64
+	bytesProcessed atomic.Int64
+	maxBufSize     atomic.Int64
+	start          time.Time
+}
 
 type server struct {
 	firestoreClient *storage.FirestoreClient
@@ -266,6 +278,30 @@ func (s *server) alertsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Initialize metrics
+	metrics := &requestMetrics{
+		start: time.Now(),
+	}
+	defer func() {
+		duration := time.Since(metrics.start)
+		var m runtime.MemStats
+		runtime.ReadMemStats(&m)
+		log.Printf("[METRICS] Request completed in %v | Lines: %d | Bytes: %d (%.2f MB) | Throughput: %.2f MB/s | Buffer grows: %d | Max buffer: %d bytes | Channel blocks: %d | Memory: Alloc=%d MB, TotalAlloc=%d MB, Sys=%d MB, NumGC=%d",
+			duration,
+			metrics.linesProcessed.Load(),
+			metrics.bytesProcessed.Load(),
+			float64(metrics.bytesProcessed.Load())/1024/1024,
+			float64(metrics.bytesProcessed.Load())/1024/1024/duration.Seconds(),
+			metrics.bufferGrows.Load(),
+			metrics.maxBufSize.Load(),
+			metrics.channelBlocks.Load(),
+			m.Alloc/1024/1024,
+			m.TotalAlloc/1024/1024,
+			m.Sys/1024/1024,
+			m.NumGC,
+		)
+	}()
+
 	numWorkers := 7
 	jobs := make(chan time.Time, len(dates))
 	dataChan := make(chan []byte, 100) // Channel for workers to send data to the writer
@@ -302,7 +338,16 @@ func (s *server) alertsHandler(w http.ResponseWriter, r *http.Request) {
 					for {
 						n, readErr := reader.Read(readBuf)
 						if n > 0 {
+							oldCap := cap(buf)
 							buf = append(buf, readBuf[:n]...)
+							newCap := cap(buf)
+							if newCap > oldCap {
+								metrics.bufferGrows.Add(1)
+							}
+							if newCap > int(metrics.maxBufSize.Load()) {
+								metrics.maxBufSize.Store(int64(newCap))
+							}
+							metrics.bytesProcessed.Add(int64(n))
 
 							// Process complete lines
 							for {
@@ -322,7 +367,16 @@ func (s *server) alertsHandler(w http.ResponseWriter, r *http.Request) {
 								// Send complete line including newline
 								line := make([]byte, lineEnd+1)
 								copy(line, buf[:lineEnd+1])
-								dataChan <- line
+								metrics.linesProcessed.Add(1)
+
+								// Non-blocking send with metrics
+								select {
+								case dataChan <- line:
+									// Sent without blocking
+								default:
+									metrics.channelBlocks.Add(1)
+									dataChan <- line // Block if necessary
+								}
 
 								// Remove processed line from buffer
 								buf = buf[lineEnd+1:]
