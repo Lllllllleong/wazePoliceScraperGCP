@@ -41,69 +41,43 @@ func (c *Client) GetAlerts(bbox string) (*models.WazeAPIResponse, error) {
 
 	west, south, east, north := parts[0], parts[1], parts[2], parts[3]
 
-	// Try multiple potential URL formats
-	potentialURLs := []string{
-		fmt.Sprintf("https://www.waze.com/live-map/api/georss?top=%s&bottom=%s&left=%s&right=%s&env=row&types=alerts",
-			north, south, west, east),
-		fmt.Sprintf("https://www.waze.com/live-map/api/georss?bbox=%s&types=alerts", bbox),
+	url := fmt.Sprintf("https://www.waze.com/live-map/api/georss?top=%s&bottom=%s&left=%s&right=%s&env=row&types=alerts",
+		north, south, west, east)
+
+	log.Printf("Fetching alerts from: %s", url)
+
+	resp, err := c.httpClient.Get(url)
+	if err != nil {
+		c.stats.FailedCalls++
+		return nil, fmt.Errorf("API call failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		c.stats.FailedCalls++
+		return nil, fmt.Errorf("API returned status %d", resp.StatusCode)
 	}
 
-	headers := map[string]string{
-		"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-		"Referer":    "https://www.waze.com/live-map",
-		"Accept":     "application/json, text/plain, */*",
+	log.Printf("Successful API call: %d", resp.StatusCode)
+	c.stats.SuccessfulCalls++
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	for i, url := range potentialURLs {
-		log.Printf("Attempting direct API call %d to: %s", i+1, url)
-
-		req, err := http.NewRequest("GET", url, nil)
-		if err != nil {
-			log.Printf("Failed to create request: %v", err)
-			continue
-		}
-
-		// Set headers
-		for key, value := range headers {
-			req.Header.Set(key, value)
-		}
-
-		resp, err := c.httpClient.Do(req)
-		if err != nil {
-			log.Printf("Direct API call failed: %v", err)
-			continue
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode == 200 {
-			log.Printf("Successful API call: %d", resp.StatusCode)
-			c.stats.SuccessfulCalls++
-
-			body, err := io.ReadAll(resp.Body)
-			if err != nil {
-				log.Printf("Failed to read response body: %v", err)
-				continue
-			}
-
-			var apiResponse models.WazeGeoRSSResponse
-			if err := json.Unmarshal(body, &apiResponse); err != nil {
-				log.Printf("Failed to parse JSON response: %v", err)
-				log.Printf("Raw response (first 500 chars): %s", string(body[:min(500, len(body))]))
-				continue
-			}
-
-			c.stats.TotalAlerts += len(apiResponse.Alerts)
-			c.stats.LastSuccessfulRun = time.Now()
-
-			log.Printf("Successfully fetched %d alerts", len(apiResponse.Alerts))
-			return &apiResponse, nil
-		}
-
-		log.Printf("API call failed with status: %d", resp.StatusCode)
+	var apiResponse models.WazeGeoRSSResponse
+	if err := json.Unmarshal(body, &apiResponse); err != nil {
+		log.Printf("Failed to parse JSON response: %v", err)
+		log.Printf("Raw response (first 500 chars): %s", string(body[:min(500, len(body))]))
+		return nil, fmt.Errorf("failed to parse JSON: %w", err)
 	}
 
-	c.stats.FailedCalls++
-	return nil, fmt.Errorf("all API call attempts failed for bbox: %s", bbox)
+	c.stats.TotalAlerts += len(apiResponse.Alerts)
+	c.stats.LastSuccessfulRun = time.Now()
+
+	log.Printf("Successfully fetched %d alerts", len(apiResponse.Alerts))
+	return &apiResponse, nil
 }
 
 // GetAlertsMultipleBBoxes fetches alerts from multiple bounding boxes and deduplicates
