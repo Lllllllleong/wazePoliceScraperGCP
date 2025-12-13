@@ -83,12 +83,8 @@ jobs:
           region: ${{ env.REGION }}
           image: ${{ env.GAR_LOCATION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
           project_id: ${{ env.GCP_PROJECT_ID }}
-          flags: '--allow-unauthenticated --max-instances=1 --min-instances=0 --memory=512Mi --cpu=1'
-          env_vars: |
-            GCP_PROJECT_ID=${{ env.GCP_PROJECT_ID }}
-            FIRESTORE_COLLECTION=police_alerts
-            GCS_BUCKET_NAME=wazepolicescrapergcp-archive
-            RATE_LIMIT_PER_MINUTE=30
+          # All infrastructure settings (CPU, memory, scaling, auth) managed by Terraform
+          # This workflow only updates the container image
 
       - name: Output Deployed URL
         run: echo "Successfully deployed to ${{ steps.deploy.outputs.url }}"

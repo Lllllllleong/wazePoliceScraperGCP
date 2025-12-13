@@ -41,9 +41,44 @@ Thumbs.db
 !configs/*.json
 "dashboard-react-prototype/" 
 
+# Terraform
+# Best practice: Exclude state files, variable overrides, and local directories
+terraformExport/
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars.backup
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Exclude sensitive tfvars (keep terraform.tfvars committed since it has no secrets)
+# If you add secrets later, uncomment the line below:
+# terraform.tfvars
+
 # Local testing artifacts
 service.log
 set-env.sh
 dataAnalysis/public/config.local.js
 dataAnalysis/public/index.local.html
 serve-frontend.py
+dashboardFrontend/ALERTS_SERVICE_API.md
+dashboardFrontend/FRONTEND_REQUIREMENTS.md
+tmp/config.SECURITY.js
+tmp/DECISIONS.md
+tmp/deploy-alerts.bat
+tmp/deploy-archive.bat
+tmp/deploy-scraper.bat
+tmp/firestore.rules
+tmp/GEMINI.md
+tmp/start-service.sh
+tmp/test-buffers-local.sh
+tmp/test-gzip.sh
+tmp/TESTING_GUIDE.md
+tmp/tmp.txt
+plan_output.txt
