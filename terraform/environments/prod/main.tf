@@ -353,8 +353,16 @@ module "github_actions_sa" {
   # Roles for CI/CD deployment
   project_roles = [
     "roles/artifactregistry.writer", # Push Docker images
-    "roles/run.admin"                # Deploy Cloud Run services
+    "roles/run.admin",               # Deploy Cloud Run services
+    "roles/storage.objectAdmin"      # Access Terraform state bucket
   ]
+}
+
+# Grant GitHub Actions SA access to the Terraform state bucket
+resource "google_storage_bucket_iam_member" "github_actions_state_access" {
+  bucket = "wazepolicescrapergcp-terraform-state"
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${module.github_actions_sa.service_account_email}"
 }
 
 # Firebase Admin SDK service account
