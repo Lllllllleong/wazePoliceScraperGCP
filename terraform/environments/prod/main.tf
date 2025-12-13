@@ -71,7 +71,7 @@ module "archive_bucket" {
 
   force_destroy               = false
   uniform_bucket_level_access = true
-  public_access_prevention    = "inherited"
+  public_access_prevention    = "enforced"
 
   # Soft delete with 7-day retention (604800 seconds)
   soft_delete_retention_seconds = 604800
@@ -91,7 +91,7 @@ module "scraper_service" {
   project_id            = var.project_id
   location              = var.region
   container_image       = var.scraper_image
-  service_account_email = var.service_account_email
+  service_account_email = module.scraper_service_account.service_account_email
 
   # Resource limits
   cpu_limit    = "1"
@@ -135,7 +135,7 @@ module "alerts_service" {
   project_id            = var.project_id
   location              = var.region
   container_image       = var.alerts_image
-  service_account_email = var.service_account_email
+  service_account_email = module.alerts_service_account.service_account_email
 
   cpu_limit    = "1"
   memory_limit = "512Mi"
@@ -171,7 +171,7 @@ module "archive_service" {
   project_id            = var.project_id
   location              = var.region
   container_image       = var.archive_image
-  service_account_email = var.service_account_email
+  service_account_email = module.archive_service_account.service_account_email
 
   cpu_limit    = "1"
   memory_limit = "512Mi"
@@ -210,8 +210,10 @@ module "scraper_scheduler" {
   http_method = "GET"
   target_uri  = module.scraper_service.service_url
 
-  # No OIDC auth - scraper service allows unauthenticated (triggered by scheduler)
-  use_oidc_auth = false
+  # OIDC auth required - scraper service requires authentication
+  use_oidc_auth         = true
+  service_account_email = module.scraper_service_account.service_account_email
+  oidc_audience         = module.scraper_service.service_url
 
   attempt_deadline = "180s"
 
@@ -237,7 +239,7 @@ module "archive_scheduler" {
 
   # OIDC auth required - archive service requires authentication
   use_oidc_auth         = true
-  service_account_email = var.service_account_email
+  service_account_email = module.archive_service_account.service_account_email
   oidc_audience         = module.archive_service.service_url
 
   attempt_deadline = "180s"
@@ -324,22 +326,51 @@ module "archive_registry" {
 # SERVICE ACCOUNTS & IAM
 # =============================================================================
 
-# Default compute service account (GCP-managed, special account)
-# Used by all Cloud Run services
-# Note: This is a GCP-managed account and cannot be imported as a service account resource
-# We only manage its IAM bindings
+# Scraper Service Account - Write to Firestore
+module "scraper_service_account" {
+  source = "../../modules/service-account"
 
-# IAM binding for compute service account
-resource "google_project_iam_member" "compute_sa_editor" {
-  project = var.project_id
-  role    = "roles/editor"
-  member  = "serviceAccount:${var.service_account_email}"
+  project_id             = var.project_id
+  account_id             = "scraper-sa"
+  display_name           = "Scraper Service"
+  description            = "Service account for scraper-service with write access to Firestore"
+  create_service_account = true
 
-  # NOTE: roles/editor is overly permissive
-  # TODO: Replace with least-privilege roles:
-  #   - roles/datastore.user (Firestore access)
-  #   - roles/storage.objectAdmin (GCS access)
-  #   - roles/cloudscheduler.jobRunner (for scheduler triggers)
+  project_roles = [
+    "roles/datastore.user" # Write police alerts to Firestore
+  ]
+}
+
+# Alerts Service Account - Read from Firestore and GCS
+module "alerts_service_account" {
+  source = "../../modules/service-account"
+
+  project_id             = var.project_id
+  account_id             = "alerts-sa"
+  display_name           = "Alerts Service"
+  description            = "Service account for alerts-service with read access to Firestore and GCS"
+  create_service_account = true
+
+  project_roles = [
+    "roles/datastore.viewer",     # Read police alerts from Firestore
+    "roles/storage.objectViewer"  # Read archive files from GCS bucket
+  ]
+}
+
+# Archive Service Account - Read Firestore, Read/Write to GCS
+module "archive_service_account" {
+  source = "../../modules/service-account"
+
+  project_id             = var.project_id
+  account_id             = "archive-sa"
+  display_name           = "Archive Service"
+  description            = "Service account for archive-service with Firestore read and GCS read/write access"
+  create_service_account = true
+
+  project_roles = [
+    "roles/datastore.user",       # Read from Firestore (and future delete capability)
+    "roles/storage.objectAdmin"   # Read/write archives to GCS bucket (needed for idempotency check)
+  ]
 }
 
 # GitHub Actions runner service account
@@ -351,10 +382,10 @@ module "github_actions_sa" {
   display_name           = "GitHub Actions Runner"
   create_service_account = false # Already exists
 
-  # Roles for CI/CD deployment
+  # Roles for CI/CD deployment (minimal permissions)
   project_roles = [
     "roles/artifactregistry.writer", # Push Docker images
-    "roles/run.admin",               # Deploy Cloud Run services
+    "roles/run.developer",           # Deploy Cloud Run services (less than admin)
     "roles/storage.objectAdmin"      # Access Terraform state bucket
   ]
 }
@@ -364,6 +395,38 @@ resource "google_storage_bucket_iam_member" "github_actions_state_access" {
   bucket = "wazepolicescrapergcp-terraform-state"
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${module.github_actions_sa.service_account_email}"
+}
+
+# Grant GitHub Actions SA ability to impersonate service accounts for deployments
+resource "google_service_account_iam_member" "github_actions_impersonate_scraper" {
+  service_account_id = module.scraper_service_account.service_account_name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${module.github_actions_sa.service_account_email}"
+}
+
+resource "google_service_account_iam_member" "github_actions_impersonate_alerts" {
+  service_account_id = module.alerts_service_account.service_account_name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${module.github_actions_sa.service_account_email}"
+}
+
+resource "google_service_account_iam_member" "github_actions_impersonate_archive" {
+  service_account_id = module.archive_service_account.service_account_name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${module.github_actions_sa.service_account_email}"
+}
+
+# Grant Cloud Scheduler service account invoker permissions
+resource "google_project_iam_member" "scheduler_invoker_scraper" {
+  project = var.project_id
+  role    = "roles/run.invoker"
+  member  = "serviceAccount:${module.scraper_service_account.service_account_email}"
+}
+
+resource "google_project_iam_member" "scheduler_invoker_archive" {
+  project = var.project_id
+  role    = "roles/run.invoker"
+  member  = "serviceAccount:${module.archive_service_account.service_account_email}"
 }
 
 # Firebase Admin SDK service account
@@ -376,10 +439,9 @@ module "firebase_adminsdk_sa" {
   description            = "Firebase Admin SDK Service Agent"
   create_service_account = false # Already exists
 
-  # Firebase-specific roles
+  # Firebase-specific roles (removed firebaseauth.admin - not used)
   project_roles = [
     "roles/firebase.sdkAdminServiceAgent",
-    "roles/firebaseauth.admin",
     "roles/iam.serviceAccountTokenCreator"
   ]
 }
@@ -402,4 +464,50 @@ module "firestore_database" {
   app_engine_integration_mode       = "DISABLED"
   point_in_time_recovery_enablement = "POINT_IN_TIME_RECOVERY_DISABLED"
   delete_protection_state           = "DELETE_PROTECTION_DISABLED"
+}
+
+# =============================================================================
+# AUDIT LOGGING CONFIGURATION
+# =============================================================================
+
+# Enable audit logging for Firestore data access
+resource "google_project_iam_audit_config" "firestore_audit" {
+  project = var.project_id
+  service = "datastore.googleapis.com"
+
+  audit_log_config {
+    log_type = "DATA_READ"
+  }
+
+  audit_log_config {
+    log_type = "DATA_WRITE"
+  }
+}
+
+# Enable audit logging for Cloud Storage data access
+resource "google_project_iam_audit_config" "storage_audit" {
+  project = var.project_id
+  service = "storage.googleapis.com"
+
+  audit_log_config {
+    log_type = "DATA_READ"
+  }
+
+  audit_log_config {
+    log_type = "DATA_WRITE"
+  }
+}
+
+# Enable audit logging for BigQuery data access
+resource "google_project_iam_audit_config" "bigquery_audit" {
+  project = var.project_id
+  service = "bigquery.googleapis.com"
+
+  audit_log_config {
+    log_type = "DATA_READ"
+  }
+
+  audit_log_config {
+    log_type = "DATA_WRITE"
+  }
 }
