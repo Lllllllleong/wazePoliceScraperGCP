@@ -352,8 +352,8 @@ module "alerts_service_account" {
   create_service_account = true
 
   project_roles = [
-    "roles/datastore.viewer",     # Read police alerts from Firestore
-    "roles/storage.objectViewer"  # Read archive files from GCS bucket
+    "roles/datastore.viewer",    # Read police alerts from Firestore
+    "roles/storage.objectViewer" # Read archive files from GCS bucket
   ]
 }
 
@@ -368,8 +368,8 @@ module "archive_service_account" {
   create_service_account = true
 
   project_roles = [
-    "roles/datastore.user",       # Read from Firestore (and future delete capability)
-    "roles/storage.objectAdmin"   # Read/write archives to GCS bucket (needed for idempotency check)
+    "roles/datastore.user",     # Read from Firestore (and future delete capability)
+    "roles/storage.objectAdmin" # Read/write archives to GCS bucket (needed for idempotency check)
   ]
 }
 
