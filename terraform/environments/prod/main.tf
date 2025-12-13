@@ -119,6 +119,7 @@ module "scraper_service" {
     local.common_labels,
     {
       service = "scraper"
+      tier    = "backend"
     }
   )
 
