@@ -25,6 +25,11 @@ import (
 	"golang.org/x/time/rate"
 )
 
+// contextKey is a custom type for context keys to avoid collisions
+type contextKey string
+
+const uidContextKey contextKey = "uid"
+
 // Metrics for buffer performance testing
 type requestMetrics struct {
 	bufferGrows    atomic.Int64
@@ -192,7 +197,6 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		// Allow localhost for local development/testing
 		if !originAllowed && (strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:")) {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
-			originAllowed = true
 		}
 
 		w.Header().Set("Vary", "Origin")
@@ -235,7 +239,7 @@ func (s *server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		// Add user ID to context for use in downstream handlers
-		ctx := context.WithValue(r.Context(), "uid", token.UID)
+		ctx := context.WithValue(r.Context(), uidContextKey, token.UID)
 		log.Printf("Authenticated user: %s", token.UID)
 
 		next(w, r.WithContext(ctx))
@@ -258,7 +262,7 @@ func (s *server) getLimiter(uid string) *rate.Limiter {
 func (s *server) rateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Get user ID from context (set by authMiddleware)
-		uid, ok := r.Context().Value("uid").(string)
+		uid, ok := r.Context().Value(uidContextKey).(string)
 		if !ok || uid == "" {
 			log.Printf("Rate limiting failed: No UID in context")
 			http.Error(w, "Authentication required", http.StatusUnauthorized)
