@@ -5,6 +5,7 @@ project_id         = "wazepolicescrapergcp"
 region             = "us-central1"
 environment        = "prod"
 gcs_archive_bucket = "wazepolicescrapergcp-archive"
+terraform_state_bucket = "wazepolicescrapergcp-terraform-state"
 
 # Container images - update these with your current commit SHA
 # You can find these in your Cloud Run services or GitHub Actions outputs

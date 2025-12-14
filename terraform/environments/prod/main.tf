@@ -392,7 +392,7 @@ module "github_actions_sa" {
 
 # Grant GitHub Actions SA access to the Terraform state bucket
 resource "google_storage_bucket_iam_member" "github_actions_state_access" {
-  bucket = "wazepolicescrapergcp-terraform-state"
+  bucket = var.terraform_state_bucket
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${module.github_actions_sa.service_account_email}"
 }

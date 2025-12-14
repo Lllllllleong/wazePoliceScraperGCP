@@ -138,11 +138,6 @@ output "all_registry_urls" {
 # SERVICE ACCOUNT OUTPUTS
 # =============================================================================
 
-output "compute_service_account_email" {
-  description = "Email of the default compute service account"
-  value       = var.service_account_email
-}
-
 output "github_actions_sa_email" {
   description = "Email of the GitHub Actions service account"
   value       = module.github_actions_sa.service_account_email

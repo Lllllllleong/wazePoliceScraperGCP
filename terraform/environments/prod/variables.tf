@@ -62,13 +62,9 @@ variable "rate_limit_per_minute" {
   default     = 30
 }
 
-# Service account for Cloud Run services
-# WARNING: Currently using default compute service account
-# TODO Phase 4: Create dedicated service account with minimal permissions
-variable "service_account_email" {
-  description = "Service account email for Cloud Run services"
+variable "terraform_state_bucket" {
+  description = "GCS bucket name for Terraform state"
   type        = string
-  default     = "807773831037-compute@developer.gserviceaccount.com"
 }
 
 # BigQuery configuration
