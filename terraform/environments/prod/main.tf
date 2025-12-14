@@ -149,6 +149,7 @@ module "alerts_service" {
     {
       CORS_ALLOWED_ORIGIN   = var.cors_allowed_origin
       RATE_LIMIT_PER_MINUTE = tostring(var.rate_limit_per_minute)
+      FIREBASE_PROJECT_ID   = var.project_id
     }
   )
 
@@ -244,10 +245,10 @@ module "archive_scheduler" {
 
   attempt_deadline = "180s"
 
-  # Retry configuration
-  max_retry_duration   = "0s"
+  # Retry configuration - Allow up to 5 retry attempts for daily archive job
+  max_retry_duration   = "360s"
   min_backoff_duration = "5s"
-  max_backoff_duration = "3600s"
+  max_backoff_duration = "80s"
   max_doublings        = 5
 }
 

@@ -82,3 +82,5 @@ tmp/test-gzip.sh
 tmp/TESTING_GUIDE.md
 tmp/tmp.txt
 plan_output.txt
+docs/ADR.md
+terraform/CI_CD_INTEGRATION.md
