@@ -1,20 +1,35 @@
-// API Configuration
-// Auto-detect local vs production
-const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+// Environment detection
+const isLocalhost = window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1' || 
+                    window.location.port === '5000';
 
+// API Configuration
 window.API_CONFIG = {
     alertsEndpoint: isLocalhost 
-        ? "http://localhost:8080/police_alerts"  // Local backend
-        : "https://alerts-service-807773831037.us-central1.run.app/police_alerts",  // Production
-    timeout: 60000 // Increased timeout for streaming
+        ? "http://localhost:8080/police_alerts"
+        : "https://alerts-service-807773831037.us-central1.run.app/police_alerts",
+    timeout: 60000
 };
 
-// Log which backend we're using
+// Firebase Configuration
+window.FIREBASE_CONFIG = {
+    apiKey: "AIzaSyBi6kHNLu8BM2CjObGtj5YOwLBjFaLW9xI",
+    authDomain: "wazepolicescrapergcp.firebaseapp.com",
+    projectId: "wazepolicescrapergcp",
+    storageBucket: "wazepolicescrapergcp.firebasestorage.app",
+    messagingSenderId: "807773831037",
+    appId: "1:807773831037:web:b26c7a5bd2e2b4b3f1c4d9"
+};
+
+// Emulator configuration (only for local development)
+window.USE_FIREBASE_EMULATOR = isLocalhost;
+window.FIREBASE_EMULATOR_HOST = "localhost:9099";
+
+// Environment logging
 if (isLocalhost) {
-    console.log('🔧 LOCAL MODE: Using backend at http://localhost:8080');
-    console.log('⚠️ Make sure alerts-service is running locally!');
+    console.log('🔧 Development Mode: localhost:8080 + Firebase Emulator');
 } else {
-    console.log('🌐 PRODUCTION MODE: Using Cloud Run backend');
+    console.log('🌐 Production Mode: Cloud Run + Firebase Auth');
 }
 
 // Map configuration

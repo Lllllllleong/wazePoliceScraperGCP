@@ -21,6 +21,12 @@ let selectedStreets = []; // Array of selected streets for filtering
 let timelineLayer = null; // Timeline layer for temporal visualization
 let timelineControl = null; // Timeline slider control
 
+// Firebase Auth state
+let firebaseApp = null;
+let firebaseAuth = null;
+let currentIdToken = null;
+let tokenRefreshInterval = null;
+
 // Constants for date range
 // TODO: Ideally, MIN_DATE should be derived by querying the earliest "publish_time" 
 // Timestamp field in the database, but we've hardcoded it for now
@@ -72,6 +78,67 @@ function parseTimestamp(timestamp) {
     return 0;
 }
 
+/**
+ * Initialize Firebase Authentication
+ */
+async function initFirebaseAuth() {
+    try {
+        // Initialize Firebase App
+        firebaseApp = window.FirebaseApp.initializeApp(window.FIREBASE_CONFIG);
+        firebaseAuth = window.FirebaseAuth.getAuth(firebaseApp);
+        
+        // Connect to emulator in local development
+        if (window.USE_FIREBASE_EMULATOR) {
+            window.FirebaseAuth.connectAuthEmulator(
+                firebaseAuth, 
+                `http://${window.FIREBASE_EMULATOR_HOST}`
+            );
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Firebase initialization failed:', error);
+        return false;
+    }
+}
+
+/**
+ * Ensure user is authenticated and return a valid ID token
+ */
+async function ensureAuthenticated() {
+    if (!firebaseAuth) {
+        throw new Error('Firebase Auth not initialized');
+    }
+
+    // Return cached token if available
+    if (currentIdToken) {
+        return currentIdToken;
+    }
+
+    // Sign in anonymously
+    const userCredential = await window.FirebaseAuth.signInAnonymously(firebaseAuth);
+    currentIdToken = await userCredential.user.getIdToken();
+    
+    // Set up token refresh (every 50 minutes, tokens expire in 60)
+    if (tokenRefreshInterval) {
+        clearInterval(tokenRefreshInterval);
+    }
+    
+    tokenRefreshInterval = setInterval(async () => {
+        try {
+            const user = firebaseAuth.currentUser;
+            if (user) {
+                currentIdToken = await user.getIdToken(true);
+            }
+        } catch (error) {
+            console.error('Token refresh failed:', error);
+            currentIdToken = null;
+        }
+    }, 50 * 60 * 1000);
+    
+    return currentIdToken;
+}
+
 // Disclaimer Modal Handling
 function initDisclaimerModal() {
     const disclaimerModal = document.getElementById('disclaimer-modal');
@@ -109,19 +176,29 @@ function initDisclaimerModal() {
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log('Initializing Police Alert Analysis app...');
+    // Initialize Firebase Authentication
+    const authInitialized = await initFirebaseAuth();
+    if (!authInitialized) {
+        const alertList = document.getElementById('alert-list');
+        alertList.innerHTML = '<p class="loading-message" style="color: var(--danger-color);">❌ Authentication initialization failed. Please refresh the page.</p>';
+        return;
+    }
 
-    // Initialize disclaimer modal first
+    // Initialize UI components
     initDisclaimerModal();
-
     initMap();
     initDatePicker();
     initEventListeners();
-    disableStage2UI(); // Disable alert filters until data is loaded
+    disableStage2UI();
 
-    // Show welcome message
+    // Welcome message
     const alertList = document.getElementById('alert-list');
     alertList.innerHTML = '<p class="loading-message">👋 Welcome! Please select dates above and click "Load Data" to begin.</p>';
+
+    // Pre-authenticate in background for faster data loading
+    ensureAuthenticated().catch(() => {
+        // Will retry on demand if pre-auth fails
+    });
 });
 
 // Initialize Leaflet map
@@ -255,26 +332,32 @@ async function loadAlertsForSelectedDates() {
     }
 }
 
-// Load alerts from API (non-streaming method for simplicity)
+// Load alerts from API
 async function loadAlertsFromAPI() {
     const loadingMessage = document.getElementById('loading-message');
     const totalAlertsCounter = document.getElementById('total-alerts');
-    loadingMessage.textContent = `Fetching data for ${selectedDates.length} date(s)...`;
-    totalAlertsCounter.textContent = '0';
-
-    console.log('Fetching alerts via new API for dates:', selectedDates);
-
-    // Clear existing data
-    alertsMap.clear();
-    allAlerts = [];
-
-    const datesParam = selectedDates.join(',');
-    const url = `${window.API_CONFIG.alertsEndpoint}?dates=${datesParam}`;
-
+    
     try {
+        loadingMessage.textContent = 'Authenticating...';
+        totalAlertsCounter.textContent = '0';
+
+        // Get authentication token
+        const token = await ensureAuthenticated();
+        loadingMessage.textContent = `Fetching data for ${selectedDates.length} date(s)...`;
+
+        // Clear existing data
+        alertsMap.clear();
+        allAlerts = [];
+
+        const datesParam = selectedDates.join(',');
+        const url = `${window.API_CONFIG.alertsEndpoint}?dates=${datesParam}`;
+
         const response = await fetch(url, {
             method: 'GET',
-            signal: AbortSignal.timeout(window.API_CONFIG.timeout || 60000)
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            signal: AbortSignal.timeout(window.API_CONFIG.timeout)
         });
 
         if (response.status === 429) {

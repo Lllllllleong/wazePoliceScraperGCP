@@ -270,6 +270,17 @@
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
+    <!-- Firebase SDK -->
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged, connectAuthEmulator } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        
+        // Make Firebase available globally
+        window.FirebaseApp = { initializeApp };
+        window.FirebaseAuth = { getAuth, signInAnonymously, onAuthStateChanged, connectAuthEmulator };
+    </script>
+
     <!-- Custom JS -->
     <script src="config.js"></script>
     <script src="app.js"></script>

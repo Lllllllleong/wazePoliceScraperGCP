@@ -18,6 +18,8 @@ import (
 	_ "time/tzdata"
 
 	gcs "cloud.google.com/go/storage"
+	firebase "firebase.google.com/go/v4"
+	"firebase.google.com/go/v4/auth"
 	"github.com/Lllllllleong/wazePoliceScraperGCP/internal/models"
 	"github.com/Lllllllleong/wazePoliceScraperGCP/internal/storage"
 	"golang.org/x/time/rate"
@@ -37,6 +39,7 @@ type server struct {
 	firestoreClient *storage.FirestoreClient
 	storageClient   *gcs.Client
 	bucketName      string
+	firebaseAuth    *auth.Client
 	// Rate limiting
 	limiters      map[string]*rate.Limiter
 	limitersMutex sync.RWMutex
@@ -87,10 +90,29 @@ func main() {
 	}
 	defer storageClient.Close()
 
+	// Initialize Firebase Admin SDK
+	firebaseApp, err := firebase.NewApp(ctx, &firebase.Config{
+		ProjectID: projectID,
+	})
+	if err != nil {
+		log.Fatalf("Failed to initialize Firebase app: %v", err)
+	}
+
+	firebaseAuth, err := firebaseApp.Auth(ctx)
+	if err != nil {
+		log.Fatalf("Failed to create Firebase Auth client: %v", err)
+	}
+
+	// Log if using emulator (for local testing)
+	if os.Getenv("FIREBASE_AUTH_EMULATOR_HOST") != "" {
+		log.Printf("Using Firebase Auth Emulator at %s", os.Getenv("FIREBASE_AUTH_EMULATOR_HOST"))
+	}
+
 	s := &server{
 		firestoreClient: firestoreClient,
 		storageClient:   storageClient,
 		bucketName:      bucketName,
+		firebaseAuth:    firebaseAuth,
 		limiters:        make(map[string]*rate.Limiter),
 		ratePerMinute:   ratePerMinute,
 	}
@@ -99,8 +121,9 @@ func main() {
 	go s.cleanupLimiters()
 
 	log.Printf("Starting Alerts Service on port %s", port)
-	log.Printf("Rate limit: %d requests per minute per IP", ratePerMinute)
-	http.HandleFunc("/police_alerts", corsMiddleware(s.rateLimitMiddleware(gzipMiddleware(s.alertsHandler))))
+	log.Printf("Rate limit: %d requests per minute per user", ratePerMinute)
+	log.Printf("Firebase Authentication: Enabled")
+	http.HandleFunc("/police_alerts", corsMiddleware(s.authMiddleware(s.rateLimitMiddleware(gzipMiddleware(s.alertsHandler)))))
 	http.HandleFunc("/health", healthHandler)
 
 	log.Fatal(http.ListenAndServe(":"+port, nil))
@@ -146,7 +169,6 @@ func gzipMiddleware(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	// WARNING: It is strongly recommended to use an environment variable for this list.
 	allowedOrigins := []string{
 		"https://wazepolicescrapergcp.web.app",
 		"https://wazepolicescrapergcp.firebaseapp.com",
@@ -156,16 +178,26 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
+		originAllowed := false
+
+		// Check against allowed production origins
 		for _, allowedOrigin := range allowedOrigins {
 			if origin == allowedOrigin {
 				w.Header().Set("Access-Control-Allow-Origin", origin)
+				originAllowed = true
 				break
 			}
 		}
 
+		// Allow localhost for local development/testing
+		if !originAllowed && (strings.HasPrefix(origin, "http://localhost:") || strings.HasPrefix(origin, "http://127.0.0.1:")) {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			originAllowed = true
+		}
+
 		w.Header().Set("Vary", "Origin")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -176,37 +208,69 @@ func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func (s *server) getLimiter(ip string) *rate.Limiter {
+func (s *server) authMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Extract Authorization header
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			log.Printf("Authentication failed: Missing Authorization header from %s", r.RemoteAddr)
+			http.Error(w, "Missing authorization header", http.StatusUnauthorized)
+			return
+		}
+
+		// Extract Bearer token
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			log.Printf("Authentication failed: Invalid Authorization header format from %s", r.RemoteAddr)
+			http.Error(w, "Invalid authorization header format", http.StatusUnauthorized)
+			return
+		}
+		idToken := strings.TrimPrefix(authHeader, "Bearer ")
+
+		// Verify Firebase ID token
+		token, err := s.firebaseAuth.VerifyIDToken(r.Context(), idToken)
+		if err != nil {
+			log.Printf("Authentication failed: Invalid token from %s: %v", r.RemoteAddr, err)
+			http.Error(w, "Invalid or expired token", http.StatusUnauthorized)
+			return
+		}
+
+		// Add user ID to context for use in downstream handlers
+		ctx := context.WithValue(r.Context(), "uid", token.UID)
+		log.Printf("Authenticated user: %s", token.UID)
+
+		next(w, r.WithContext(ctx))
+	}
+}
+
+func (s *server) getLimiter(uid string) *rate.Limiter {
 	s.limitersMutex.Lock()
 	defer s.limitersMutex.Unlock()
 
-	limiter, exists := s.limiters[ip]
+	limiter, exists := s.limiters[uid]
 	if !exists {
 		// Create limiter: rate per minute = events per second
 		limiter = rate.NewLimiter(rate.Limit(float64(s.ratePerMinute)/60.0), s.ratePerMinute)
-		s.limiters[ip] = limiter
+		s.limiters[uid] = limiter
 	}
 	return limiter
 }
 
 func (s *server) rateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Get client IP - Cloud Run sets X-Forwarded-For
-		ip := r.Header.Get("X-Forwarded-For")
-		if ip == "" {
-			ip = r.RemoteAddr
-		} else {
-			// X-Forwarded-For can be "client, proxy1, proxy2" - take first
-			ips := strings.Split(ip, ",")
-			ip = strings.TrimSpace(ips[0])
+		// Get user ID from context (set by authMiddleware)
+		uid, ok := r.Context().Value("uid").(string)
+		if !ok || uid == "" {
+			log.Printf("Rate limiting failed: No UID in context")
+			http.Error(w, "Authentication required", http.StatusUnauthorized)
+			return
 		}
 
-		limiter := s.getLimiter(ip)
+		limiter := s.getLimiter(uid)
 
 		if !limiter.Allow() {
 			w.Header().Set("Retry-After", "60")
 			http.Error(w, "Rate limit exceeded. Maximum "+strconv.Itoa(s.ratePerMinute)+" requests per minute.", http.StatusTooManyRequests)
-			log.Printf("Rate limit exceeded for IP: %s", ip)
+			log.Printf("Rate limit exceeded for user: %s", uid)
 			return
 		}
 
