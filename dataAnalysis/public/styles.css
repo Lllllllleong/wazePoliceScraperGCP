@@ -1099,3 +1099,128 @@ body.disclaimer-active .container {
     margin-top: 10px;
     line-height: 1.5;
 } 
+
+
+/* =========================================
+   MOBILE RESPONSIVENESS (Added by Gemini)
+   ========================================= */
+@media (max-width: 768px) {
+    /* 1. Container & Padding Adjustments */
+    .container {
+        padding: 10px;
+        width: 100%;
+        max-width: 100%;
+        overflow-x: hidden; /* Prevent horizontal scroll */
+    }
+
+    /* 2. Header Adjustments */
+    header {
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    header h1 {
+        font-size: 1.6rem;
+    }
+    
+    .header-subtitle {
+        font-size: 0.95rem;
+    }
+
+    /* 3. Map Height - Critical for Mobile */
+    #map {
+        height: 60vh; /* Use 60% of viewport height */
+        min-height: 400px; /* Ensure decent size */
+        max-height: 600px;
+    }
+
+    /* 4. Timeline Control Fixes */
+    /* Override rigid widths */
+    .leaflet-control-layers-expanded,
+    .leaflet-timeline-control {
+        min-width: unset !important;
+        width: 90vw !important; /* 90% of viewport width */
+        max-width: 95vw !important;
+        padding: 10px !important;
+        margin-bottom: 10px !important; /* Add bottom margin to avoid edge overlap */
+        margin-right: 0 !important; /* Reset margin */
+    }
+
+    /* Center the control at bottom */
+    .leaflet-bottom.leaflet-right {
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        justify-content: center;
+        padding: 0;
+    }
+    
+    .leaflet-timeline-control {
+        flex-wrap: wrap; /* Allow items to stack */
+        justify-content: center;
+        gap: 10px;
+    }
+
+    /* Stack the elements inside timeline control */
+    .leaflet-timeline-control .button-container {
+        order: 1;
+        flex: 1 0 auto; /* Allow growth/shrink */
+        justify-content: center;
+    }
+
+    .leaflet-timeline-control .time-text {
+        order: 2;
+        width: 100%;
+        text-align: center;
+        margin: 5px 0;
+    }
+
+    .leaflet-timeline-control input[type='range'] {
+        order: 3;
+        width: 100% !important; /* Force full width */
+        min-width: unset !important;
+        margin: 5px 0;
+    }
+
+    /* 5. General UI Controls */
+    .control-section {
+        padding: 15px;
+    }
+
+    .btn {
+        padding: 12px 16px; /* Larger touch targets */
+    }
+
+    .btn-render {
+        width: 100%; /* Full width render button */
+        padding: 16px;
+    }
+
+    /* 6. Filter Controls */
+    .filter-controls {
+        gap: 15px;
+    }
+    
+    /* Ensure dropdowns don't overflow */
+    select {
+        max-width: 100%;
+    }
+
+    /* 7. Stats Display */
+    .stats-display {
+        grid-template-columns: 1fr 1fr; /* 2 columns on mobile if space permits */
+        gap: 8px;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Even smaller screens */
+    .stats-display {
+        grid-template-columns: 1fr; /* 1 column for very small screens */
+    }
+    
+    header h1 {
+        font-size: 1.4rem;
+    }
+}
