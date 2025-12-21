@@ -13,7 +13,7 @@ window.API_CONFIG = {
 
 // Firebase Configuration
 window.FIREBASE_CONFIG = {
-    apiKey: "AIzaSyBi6kHNLu8BM2CjObGtj5YOwLBjFaLW9xI",
+    apiKey: "AIzaSyAQEJlaNkj9kBmxUU7L1JYTn9LlbgTAWQc",
     authDomain: "wazepolicescrapergcp.firebaseapp.com",
     projectId: "wazepolicescrapergcp",
     storageBucket: "wazepolicescrapergcp.firebasestorage.app",
