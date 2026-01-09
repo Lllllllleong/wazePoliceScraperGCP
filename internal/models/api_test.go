@@ -33,10 +33,10 @@ func TestAlertsRequestEmpty(t *testing.T) {
 	if len(req.Dates) != 1 {
 		t.Errorf("Expected 1 date, got %d", len(req.Dates))
 	}
-	if req.Subtypes != nil && len(req.Subtypes) != 0 {
+	if len(req.Subtypes) != 0 {
 		t.Errorf("Expected empty Subtypes, got %v", req.Subtypes)
 	}
-	if req.Streets != nil && len(req.Streets) != 0 {
+	if len(req.Streets) != 0 {
 		t.Errorf("Expected empty Streets, got %v", req.Streets)
 	}
 }
