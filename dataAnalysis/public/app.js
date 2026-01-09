@@ -945,9 +945,6 @@ function scrollToAlertMap() {
 
 // Render alerts to map with dates normalized to a single day (preserving hours)
 function renderAlertsToMapSingleDay() {
-    console.log('Rendering alerts to map as single day...');
-    console.log('Filtered alerts count:', filteredAlerts.length);
-
     // Disable this button and enable the other render option
     const renderSingleDayBtn = document.getElementById('render-map-single-day-btn');
     const renderTimelineBtn = document.getElementById('render-map-btn');
@@ -965,9 +962,6 @@ function renderAlertsToMapSingleDay() {
         alert('No alerts to render. Please adjust your filters.');
         return;
     }
-
-    // Debug: Log first alert
-    console.log('First alert:', filteredAlerts[0]);
 
     // Step 1: Calculate bounds for centering and zooming
     const coordinates = [];
@@ -993,24 +987,9 @@ function renderAlertsToMapSingleDay() {
         features: geojsonFeatures
     };
 
-    console.log(`Created ${geojsonFeatures.length} GeoJSON features from ${filteredAlerts.length} alerts (single day mode)`);
-    console.log(`Coordinates collected: ${coordinates.length}`);
-
     if (geojsonFeatures.length === 0) {
         alert('No valid features created. Check if alerts have valid timestamps and coordinates.');
-        console.error('No GeoJSON features created from alerts');
         return;
-    }
-
-    // Debug: Log first few features to check timestamps
-    if (geojsonFeatures.length > 0) {
-        console.log('First feature sample (normalized):', {
-            start: geojsonFeatures[0].properties.start,
-            end: geojsonFeatures[0].properties.end,
-            startDate: new Date(geojsonFeatures[0].properties.start),
-            endDate: new Date(geojsonFeatures[0].properties.end),
-            coords: geojsonFeatures[0].geometry.coordinates
-        });
     }
 
     // Step 3: Create timeline layer with custom styling
@@ -1078,9 +1057,9 @@ function renderAlertsToMapSingleDay() {
             const subtypeBadge = subtype === 'POLICE_WITH_MOBILE_CAMERA'
                 ? '📷 Mobile Camera'
                 : subtype === 'POLICE_VISIBLE'
-                    ? '� Visible'
+                    ? '👮 Visible'
                     : subtype === 'POLICE_HIDING'
-                        ? '�️ Hiding'
+                        ? '🕵️ Hiding'
                         : subtype === 'POLICE_ON_BRIDGE'
                             ? '🌉 On Bridge'
                             : subtype === 'POLICE_MOTORCYCLIST'
@@ -1134,19 +1113,10 @@ function renderAlertsToMapSingleDay() {
     const minTime = Math.min(...times);
     const maxTime = Math.max(...geojsonFeatures.map(f => f.properties.end).filter(t => t && !isNaN(t)));
 
-    console.log('Timeline range (single day):', {
-        minTime: minTime,
-        maxTime: maxTime,
-        minDate: new Date(minTime),
-        maxDate: new Date(maxTime),
-        totalFeatures: geojsonFeatures.length
-    });
-
     // Set the timeline to start at the earliest time
     if (minTime && !isNaN(minTime)) {
         setTimeout(() => {
             timelineLayer.setTime(minTime);
-            console.log('Set timeline to start at:', new Date(minTime));
         }, 200);
     }
 
@@ -1164,10 +1134,6 @@ function renderAlertsToMapSingleDay() {
             maxZoom: 15 // Don't zoom in too close even for single alerts
         });
 
-        console.log(`✅ Timeline rendered with ${geojsonFeatures.length} features (single day mode)`);
-        console.log(`   Map centered on ${coordinates.length} unique coordinates`);
-        console.log(`   Timeline shows alerts normalized to ${new Date(minTime).toLocaleDateString()}`);
-
         // Scroll to map section
         scrollToAlertMap();
     }, 100);
@@ -1175,9 +1141,6 @@ function renderAlertsToMapSingleDay() {
 
 // Render alerts to map
 function renderAlertsToMap() {
-    console.log('Rendering alerts to map with timeline...');
-    console.log('Filtered alerts count:', filteredAlerts.length);
-
     // Disable this button and enable the other render option
     const renderTimelineBtn = document.getElementById('render-map-btn');
     const renderSingleDayBtn = document.getElementById('render-map-single-day-btn');
@@ -1195,9 +1158,6 @@ function renderAlertsToMap() {
         alert('No alerts to render. Please adjust your filters.');
         return;
     }
-
-    // Debug: Log first alert
-    console.log('First alert:', filteredAlerts[0]);
 
     // Step 1: Calculate bounds for centering and zooming
     const coordinates = [];
@@ -1223,24 +1183,9 @@ function renderAlertsToMap() {
         features: geojsonFeatures
     };
 
-    console.log(`Created ${geojsonFeatures.length} GeoJSON features from ${filteredAlerts.length} alerts`);
-    console.log(`Coordinates collected: ${coordinates.length}`);
-
     if (geojsonFeatures.length === 0) {
         alert('No valid features created. Check if alerts have valid timestamps and coordinates.');
-        console.error('No GeoJSON features created from alerts');
         return;
-    }
-
-    // Debug: Log first few features to check timestamps
-    if (geojsonFeatures.length > 0) {
-        console.log('First feature sample:', {
-            start: geojsonFeatures[0].properties.start,
-            end: geojsonFeatures[0].properties.end,
-            startDate: new Date(geojsonFeatures[0].properties.start),
-            endDate: new Date(geojsonFeatures[0].properties.end),
-            coords: geojsonFeatures[0].geometry.coordinates
-        });
     }
 
     // Step 3: Create timeline layer with custom styling
@@ -1308,9 +1253,9 @@ function renderAlertsToMap() {
             const subtypeBadge = subtype === 'POLICE_WITH_MOBILE_CAMERA'
                 ? '📷 Mobile Camera'
                 : subtype === 'POLICE_VISIBLE'
-                    ? '� Visible'
+                    ? '👮 Visible'
                     : subtype === 'POLICE_HIDING'
-                        ? '�️ Hiding'
+                        ? '🕵️ Hiding'
                         : subtype === 'POLICE_ON_BRIDGE'
                             ? '🌉 On Bridge'
                             : subtype === 'POLICE_MOTORCYCLIST'
@@ -1366,19 +1311,10 @@ function renderAlertsToMap() {
     const minTime = Math.min(...times);
     const maxTime = Math.max(...geojsonFeatures.map(f => f.properties.end).filter(t => t && !isNaN(t)));
 
-    console.log('Timeline range:', {
-        minTime: minTime,
-        maxTime: maxTime,
-        minDate: new Date(minTime),
-        maxDate: new Date(maxTime),
-        totalFeatures: geojsonFeatures.length
-    });
-
     // Set the timeline to start at the earliest time
     if (minTime && !isNaN(minTime)) {
         setTimeout(() => {
             timelineLayer.setTime(minTime);
-            console.log('Set timeline to start at:', new Date(minTime));
         }, 200);
     }
 
@@ -1395,10 +1331,6 @@ function renderAlertsToMap() {
             padding: [50, 50],
             maxZoom: 15 // Don't zoom in too close even for single alerts
         });
-
-        console.log(`✅ Timeline rendered with ${geojsonFeatures.length} features`);
-        console.log(`   Map centered on ${coordinates.length} unique coordinates`);
-        console.log(`   Timeline should show alerts from ${new Date(minTime).toLocaleString()} to ${new Date(maxTime).toLocaleString()}`);
 
         // Scroll to map section
         scrollToAlertMap();
@@ -1569,10 +1501,8 @@ function createAlertItem(alert, index) {
 
 
 
-// Search functionality
+// Search functionality - filters alert list by street, city, or UUID
 function onSearchInput(e) {
-    // TODO: Implement search logic
-    // Placeholder: Filter alert list by search term
     const searchTerm = e.target.value.toLowerCase();
 
     if (!searchTerm) {

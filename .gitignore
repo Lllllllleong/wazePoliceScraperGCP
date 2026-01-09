@@ -59,6 +59,7 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+CHANGELOG.md
 
 # =============================================================================
 # Terraform
@@ -115,3 +116,6 @@ dashboardFrontend/
 !dataAnalysis/package.json
 !dataAnalysis/package-lock.json
 !firestore.indexes.json
+
+# Exclude dataAnalysis CHANGELOG (development notes)
+dataAnalysis/CHANGELOG.md

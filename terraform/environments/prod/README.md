@@ -1,31 +1,40 @@
-# Terraform Environment Setup - README
+# Terraform Production Environment
 
 This directory contains the Terraform configuration for the **production** environment of the Waze Police Scraper project.
 
-## Phase 1: Setup Complete ✓
+## Overview
 
-- Remote state backend configured (GCS bucket)
-- Directory structure established
-- Base configuration files created
+All GCP infrastructure is managed declaratively using Terraform, including:
+- Cloud Run services (scraper, alerts, archive)
+- Firestore database
+- Cloud Storage buckets
+- Cloud Scheduler jobs
+- IAM service accounts and permissions
+- BigQuery dataset
 
-## Current Structure
+## Directory Structure
 
 ```
 prod/
 ├── backend.tf           # Remote state configuration (GCS)
 ├── versions.tf          # Terraform and provider version constraints
-├── main.tf              # Provider and data sources
+├── main.tf              # Main infrastructure configuration
 ├── variables.tf         # Input variable declarations
 ├── terraform.tfvars     # Variable values (update image tags as needed)
 └── outputs.tf           # Output value definitions
 ```
 
-## Next Steps (Phase 2)
+## Reusable Modules
 
-1. Build reusable modules in `../../modules/`
-2. Import existing Cloud Run services and BigQuery dataset
-3. Add module calls to main.tf
-4. Run terraform import for each resource
+The infrastructure uses modular Terraform configurations located in `../../modules/`:
+
+- **cloud-run**: Cloud Run service configuration
+- **firestore**: Firestore database setup
+- **storage**: GCS bucket configuration
+- **scheduler**: Cloud Scheduler job definitions
+- **service-account**: IAM service account management
+- **bigquery**: BigQuery dataset configuration
+- **artifact-registry**: Container registry setup
 
 ## Usage
 
@@ -36,25 +45,40 @@ cd terraform/environments/prod
 # Initialize Terraform (downloads providers, configures backend)
 terraform init
 
-# Preview infrastructure (currently just validates connectivity)
+# Preview infrastructure changes
 terraform plan
 
-# Apply changes (after modules are created and imports are done)
+# Apply changes
 terraform apply
 ```
 
-## Important Notes
+## Remote State
 
-- **DO NOT** run `terraform apply` yet - no modules are defined
-- State is stored remotely in: `gs://wazepolicescrapergcp-terraform-state/terraform/prod/state`
-- Update `terraform.tfvars` with latest container image tags before deployment
-- Run `terraform plan` frequently to check for drift
+Terraform state is stored remotely in Google Cloud Storage:
+- Bucket: `wazepolicescrapergcp-terraform-state`
+- Path: `terraform/prod/state`
+- Locking: Enabled via GCS
 
-## Migration Status
+## Updating Container Images
 
-- [x] Phase 1: Setup & Preparation
-- [ ] Phase 2: Build Reusable Modules
-- [ ] Phase 3: Import Existing Resources
-- [ ] Phase 4: Add Missing Infrastructure
-- [ ] Phase 5: CI/CD Integration
-- [ ] Phase 6: Validation & Testing
+When deploying new versions of the services, update the image tags in `terraform.tfvars`:
+
+```hcl
+scraper_image = "us-central1-docker.pkg.dev/PROJECT/scraper-service/scraper-service:COMMIT_SHA"
+alerts_image  = "us-central1-docker.pkg.dev/PROJECT/alerts-service/alerts-service:COMMIT_SHA"
+archive_image = "us-central1-docker.pkg.dev/PROJECT/archive-service/archive-service:COMMIT_SHA"
+```
+
+## CI/CD Integration
+
+The Terraform workflow (`.github/workflows/terraform-ci-cd.yml`) automatically:
+1. Runs `terraform plan` on pull requests
+2. Posts plan output as PR comments
+3. Runs `terraform apply` on merge to main
+
+## Security Notes
+
+- Service accounts follow the principle of least privilege
+- Each service has dedicated IAM permissions
+- No default service accounts are used
+- Workload Identity Federation is used for GitHub Actions authentication

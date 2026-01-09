@@ -11,7 +11,7 @@ A professional, cloud-native system for scraping, storing, and analyzing police 
 
 A live version of the data analysis dashboard is deployed and accessible here:
 
-**[https://policealert.whyhireleong.com/](https://policealert.whyhireleong.com/)**
+**[https://dashboard.whyhireleong.com/](https://dashboard.whyhireleong.com/)**
 
 
 ![Dashboard Demo](./assets/AlertDashboardWeekendDemo.gif)
@@ -152,7 +152,9 @@ The dashboard will be available at `http://localhost:5000` with Firebase Auth Em
 │   ├── models/           # Data models for alerts and Waze API
 │   ├── storage/          # Firestore and GCS storage logic
 │   └── waze/             # Waze API client
-├── scripts/              # Deployment scripts
+├── terraform/            # Infrastructure as Code (Terraform)
+│   ├── environments/     # Environment-specific configurations
+│   └── modules/          # Reusable Terraform modules
 └── .github/workflows/    # CI/CD workflows for GitHub Actions
 ```
 
@@ -168,4 +170,4 @@ When code is pushed to the `main` branch, the CI/CD workflows located in `.githu
 3.  Push the container to Google Artifact Registry.
 4.  Deploy the new container version to Google Cloud Run.
 
-Manual deployment is also possible using the scripts in the `/scripts` directory, which mirror the CI/CD process.
+Manual deployment is also possible using the Terraform configurations in the `/terraform` directory and the Dockerfiles for each service.

@@ -15,4 +15,6 @@ alerts_image  = "us-central1-docker.pkg.dev/wazepolicescrapergcp/alerts-service/
 archive_image = "us-central1-docker.pkg.dev/wazepolicescrapergcp/archive-service/archive-service:0fea809cafcadc74b505bd22d4d28c5ba465745b"
 
 # Access Control
-bigquery_data_owners = ["chanleongyin@gmail.com"]
+# BigQuery data owners are passed via GitHub Secrets in CI/CD
+# To add owners locally, use: terraform plan -var='bigquery_data_owners=["your-email@example.com"]'
+# bigquery_data_owners = []  # Default: no additional owners

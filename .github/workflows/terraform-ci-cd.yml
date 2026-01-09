@@ -67,7 +67,12 @@ jobs:
       - name: Terraform Plan
         id: plan
         run: |
-          terraform plan -no-color -out=tfplan
+          # Build var args - only include bigquery_data_owners if secret is set
+          VAR_ARGS=""
+          if [ -n "${{ secrets.BIGQUERY_DATA_OWNER }}" ]; then
+            VAR_ARGS="-var=bigquery_data_owners=[\"${{ secrets.BIGQUERY_DATA_OWNER }}\"]"
+          fi
+          terraform plan -no-color -out=tfplan $VAR_ARGS
           terraform show -no-color tfplan > tfplan.txt
         working-directory: ${{ env.TERRAFORM_DIR }}
         continue-on-error: true

@@ -267,7 +267,7 @@ We implemented **Firebase Anonymous Authentication** combined with **per-user ra
 
 ---
 
-## ADR-009: Least Privilege IAM Strategy
+## ADR-011: Least Privilege IAM Strategy
 
 **Status**: Implemented
 

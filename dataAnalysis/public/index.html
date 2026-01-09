@@ -4,7 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Police Alert Analysis</title>
+    <meta name="description" content="Interactive dashboard for analyzing police alert data in the Sydney-Canberra region with timeline visualization and filtering capabilities.">
+    <title>Police Alert Analysis Dashboard</title>
 
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -21,10 +22,10 @@
 
 <body>
     <!-- Disclaimer Modal -->
-    <div id="disclaimer-modal" class="disclaimer-modal">
+    <div id="disclaimer-modal" class="disclaimer-modal" role="dialog" aria-modal="true" aria-labelledby="disclaimer-title">
         <div class="disclaimer-content">
             <div class="disclaimer-header">
-                <h2>⚠️ Important Notice & Disclaimer</h2>
+                <h2 id="disclaimer-title">⚠️ Important Notice & Disclaimer</h2>
             </div>
             <div class="disclaimer-body">
                 <section>
@@ -238,16 +239,16 @@
                 <div class="map-header" id="map-header">
                     <h3>🗺️ Alert Map</h3>
                 </div>
-                <div id="map"></div>
+                <div id="map" role="application" aria-label="Interactive map displaying police alerts"></div>
             </div>
 
             <!-- Alert List -->
             <div class="alert-list-section">
                 <h3>📋 Alert Details</h3>
                 <div class="alert-list-controls">
-                    <input type="text" id="search-box" placeholder="Search by street, city, UUID...">
+                    <input type="text" id="search-box" placeholder="Search by street, city, UUID..." aria-label="Search alerts by street, city, or UUID">
                 </div>
-                <div id="alert-list" class="alert-list">
+                <div id="alert-list" class="alert-list" role="list" aria-label="List of police alerts" aria-live="polite">
                     <p class="loading-message">Loading alerts from Firestore...</p>
                 </div>
             </div>
