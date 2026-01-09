@@ -1,3 +1,6 @@
+# =============================================================================
+# Go
+# =============================================================================
 # Binaries
 *.exe
 *.exe~
@@ -16,71 +19,99 @@
 # Go workspace file
 go.work
 
-# IDE
+# =============================================================================
+# IDE and Editors
+# =============================================================================
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# Environment variables
+# =============================================================================
+# Environment and Secrets
+# =============================================================================
 .env
+.env.*
+!.env.example
 *.env.local
 
-# GCP
+# =============================================================================
+# GCP and Cloud Credentials
+# =============================================================================
 .gcloud/
-service-account-key.json
+*-key.json
+service-account*.json
+*_iam.json
+*_service.json
 
-# OS
+# =============================================================================
+# OS Generated Files
+# =============================================================================
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Data files
-*.json
-*.jsonl
-!configs/*.json
-"dashboard-react-prototype/" 
+# =============================================================================
+# Node.js (Frontend)
+# =============================================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
+# =============================================================================
 # Terraform
-# Best practice: Exclude state files, variable overrides, and local directories
-terraformExport/
+# =============================================================================
 **/.terraform/
 **/.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 *.tfvars.backup
 *.tfplan
+tfplan
+tfplan-*
+plan_output*.txt
 crash.log
 crash.*.log
 override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
+terraformExport/
 
-# Exclude sensitive tfvars (keep terraform.tfvars committed since it has no secrets)
-# If you add secrets later, uncomment the line below:
-# terraform.tfvars
-
-# Local testing artifacts
+# =============================================================================
+# Logs and Debug Files
+# =============================================================================
+*.log
 service.log
+*-debug.log
+
+# =============================================================================
+# Local Development and Testing
+# =============================================================================
 set-env.sh
+serve-frontend.py
+test-*.sh
+!test-local.sh
+tmp/
+
+# Local config overrides
 dataAnalysis/public/config.local.js
 dataAnalysis/public/index.local.html
-serve-frontend.py
-dashboardFrontend/ALERTS_SERVICE_API.md
-dashboardFrontend/FRONTEND_REQUIREMENTS.md
-tmp/config.SECURITY.js
-tmp/DECISIONS.md
-tmp/deploy-alerts.bat
-tmp/deploy-archive.bat
-tmp/deploy-scraper.bat
-tmp/firestore.rules
-tmp/GEMINI.md
-tmp/start-service.sh
-tmp/test-buffers-local.sh
-tmp/test-gzip.sh
-tmp/TESTING_GUIDE.md
-tmp/tmp.txt
-plan_output.txt
-docs/ADR.md
-terraform/CI_CD_INTEGRATION.md
+
+# =============================================================================
+# Temporary and Prototype Directories
+# =============================================================================
+dashboard-react-prototype/
+dashboardFrontend/
+
+# =============================================================================
+# Project-Specific Exclusions
+# =============================================================================
+# Keep specific config files that are safe to commit
+!configs/*.yaml
+!dataAnalysis/firebase.json
+!dataAnalysis/package.json
+!dataAnalysis/package-lock.json
+!firestore.indexes.json

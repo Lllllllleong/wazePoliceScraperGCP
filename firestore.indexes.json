@@ -1,0 +1,19 @@
+{
+    "indexes": [
+        {
+            "collectionGroup": "police_alerts",
+            "queryScope": "COLLECTION",
+            "fields": [
+                {
+                    "fieldPath": "expire_time",
+                    "order": "ASCENDING"
+                },
+                {
+                    "fieldPath": "publish_time",
+                    "order": "ASCENDING"
+                }
+            ]
+        }
+    ],
+    "fieldOverrides": []
+}

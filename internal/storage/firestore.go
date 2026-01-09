@@ -1,3 +1,9 @@
+// Package storage provides data persistence abstractions for Firestore and GCS.
+//
+// This package handles all database operations including:
+//   - Creating and updating police alerts with lifecycle tracking
+//   - Querying alerts by date range with geospatial support
+//   - Managing alert metadata and verification timestamps
 package storage
 
 import (

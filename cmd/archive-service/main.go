@@ -1,3 +1,19 @@
+// Package main implements the archive service for long-term data storage.
+//
+// This service is deployed on Google Cloud Run and triggered daily by
+// Cloud Scheduler. It moves completed alert data from Firestore to Google
+// Cloud Storage for cost-effective long-term archival.
+//
+// Key behaviors:
+//   - Idempotent: Skips dates that are already archived
+//   - JSONL format: Stores alerts as newline-delimited JSON
+//   - Timezone-aware: Uses Australia/Canberra timezone for date boundaries
+//
+// Environment Variables:
+//   - GCP_PROJECT_ID: Google Cloud project ID (required)
+//   - FIRESTORE_COLLECTION: Firestore collection name (default: "police_alerts")
+//   - GCS_BUCKET_NAME: GCS bucket for archives (required)
+//   - PORT: HTTP server port (default: "8080")
 package main
 
 import (

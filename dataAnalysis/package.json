@@ -1,0 +1,19 @@
+{
+  "name": "police-alert-analysis",
+  "version": "1.0.0",
+  "description": "Police Alert Analysis Dashboard",
+  "scripts": {
+    "serve": "firebase serve",
+    "deploy": "firebase deploy"
+  },
+  "dependencies": {
+    "firebase": "^12.3.0"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "police-alerts",
+    "firebase",
+    "leaflet",
+    "dashboard" 
+  ]
+}

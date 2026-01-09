@@ -1,3 +1,9 @@
+// Package models defines the data structures used throughout the application.
+//
+// This package contains models for:
+//   - WazeAlert: Raw alert data from the Waze API
+//   - PoliceAlert: Processed alert with lifecycle tracking for Firestore
+//   - API request/response structures
 package models
 
 import (

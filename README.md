@@ -13,7 +13,6 @@ A live version of the data analysis dashboard is deployed and accessible here:
 
 **[https://policealert.whyhireleong.com/](https://policealert.whyhireleong.com/)**
 
-*(Note: Data collection is scheduled to conclude on Oct 31, 2025. Upon review, the collection methodology was found to be out of compliance with Waze's Terms of Service, prompting the scheduled termination of the data feed.)*
 
 ![Dashboard Demo](./assets/AlertDashboardWeekendDemo.gif)
 
@@ -26,6 +25,8 @@ A live version of the data analysis dashboard is deployed and accessible here:
 *   **High-Fidelity Timeline**: Accurately visualizes the true lifespan of each alert, allowing for powerful temporal analysis.
 *   **Advanced Filtering**: A dynamic, tag-based UI to filter data by multiple subtypes and streets.
 *   **Microservices Architecture**: A robust backend composed of distinct services for scraping, serving data, and archiving.
+*   **Secure API**: Protected by Firebase Anonymous Authentication with per-user rate limiting.
+*   **Infrastructure as Code**: Full Terraform implementation for reproducible infrastructure deployment.
 *   **CI/CD Automation**: Fully automated build, test, and deployment pipelines using GitHub Actions.
 *   **Serverless & Scalable**: Built entirely on serverless technologies (Cloud Run, Firestore) for cost-efficiency and scalability.
 
@@ -48,10 +49,25 @@ A live version of the data analysis dashboard is deployed and accessible here:
 The system is designed as a set of cooperating microservices deployed on Google Cloud Run. This serverless architecture ensures that resources are only consumed when a service is active, making it highly cost-effective.
 
 *   **`scraper-service`**: A Go application on Cloud Run, triggered by Cloud Scheduler, that fetches data from Waze and saves it to Firestore.
-*   **`alerts-service`**: A Go API on Cloud Run that serves alert data to the frontend, intelligently fetching from GCS archives or live from Firestore.
+*   **`alerts-service`**: A Go API on Cloud Run that serves alert data to the frontend with Firebase Authentication and rate limiting, intelligently fetching from GCS archives or live from Firestore with GZIP-compressed JSONL streaming.
 *   **`archive-service`**: A Go application on Cloud Run, triggered daily by Cloud Scheduler, that moves older data from Firestore to Google Cloud Storage for long-term archival.
 
 For a detailed breakdown of the system design, data flow, and technology rationale, please see the **[Architecture Document](./ARCHITECTURE.md)**.
+
+---
+
+## 💡 Why I Built This
+
+This project was spawned out of curiosity developed from my numerous drives between Sydney and Canberra. I also took this project as a chance to demonstrate production-grade software engineering practices, including:
+
+- **Microservices Architecture**: Designing loosely-coupled, independently deployable services
+- **Cloud-Native Development**: Leveraging serverless technologies for cost efficiency and scalability
+- **Infrastructure as Code**: Managing infrastructure declaratively with Terraform
+- **API Security**: Implementing authentication, rate limiting, and CORS protection
+- **Data Streaming**: Efficient handling of large datasets with JSONL streaming and GZIP compression
+- **CI/CD Automation**: Full automation from code commit to production deployment
+
+The technical decisions made throughout development are documented in the [ADR (Architectural Decision Record)](./docs/ADR.md).
 
 ---
 
@@ -60,7 +76,9 @@ For a detailed breakdown of the system design, data flow, and technology rationa
 This project adheres to a high standard of documentation to demonstrate professional development practices.
 
 *   **[ARCHITECTURE.md](./ARCHITECTURE.md)**: A detailed explanation of the system's architecture, components, and data flow.
-*   **[DECISIONS.md](./DECISIONS.md)**: An Architectural Decision Record (ADR) that chronicles the key engineering decisions and trade-offs made during development.
+*   **[ADR.md](./docs/ADR.md)**: An Architectural Decision Record (ADR) that chronicles the key engineering decisions and trade-offs made during development.
+*   **[TERRAFORM_MIGRATION_SUMMARY.md](./terraform/TERRAFORM_MIGRATION_SUMMARY.md)**: Documentation of the infrastructure migration to Terraform.
+*   **[SECURITY.md](./SECURITY.md)**: Security considerations and documentation of public-safe configurations.
 
 ---
 
@@ -91,6 +109,7 @@ Edit the `.env` file and set the following variables:
 | `FIRESTORE_COLLECTION` | The name of the Firestore collection to store police alerts.                |
 | `GCS_BUCKET_NAME`    | The name of the Google Cloud Storage bucket for archiving old alerts.       |
 | `WAZE_BBOXES`        | A comma-separated list of bounding boxes for Waze alert scraping.           |
+| `RATE_LIMIT_PER_MINUTE` | Rate limit per user for the alerts service (defaults to 30).             |
 | `PORT`               | The port for the backend services to run on (defaults to 8080).             |
 
 
@@ -112,12 +131,12 @@ go run ./cmd/scraper-service/main.go
 The service will start on `http://localhost:8080`.
 
 ### 5. Run the Frontend Dashboard
-The frontend is a simple static site.
+The frontend is a simple static site served via Firebase Hosting emulator.
 ```bash
 cd dataAnalysis
-npm run serve
+firebase emulators:start
 ```
-The dashboard will be available at `http://localhost:5000`. You will need to update `dataAnalysis/public/config.js` to point to your local backend service for it to work.
+The dashboard will be available at `http://localhost:5000` with Firebase Auth Emulator at `localhost:9099`. The configuration in `dataAnalysis/public/config.js` automatically detects localhost and uses the appropriate endpoints and emulators.
 
 ---
 

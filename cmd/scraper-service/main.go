@@ -1,3 +1,14 @@
+// Package main implements the scraper service for fetching police alerts from Waze.
+//
+// This service is deployed on Google Cloud Run and triggered by Cloud Scheduler
+// on a regular schedule (e.g., every minute). It fetches alerts from predefined
+// geographic bounding boxes and stores them in Firestore with lifecycle tracking.
+//
+// Environment Variables:
+//   - GCP_PROJECT_ID: Google Cloud project ID (required)
+//   - FIRESTORE_COLLECTION: Firestore collection name (default: "police_alerts")
+//   - PORT: HTTP server port (default: "8080")
+//   - WAZE_BBOXES: Semicolon-separated bounding boxes (optional)
 package main
 
 import (

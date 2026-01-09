@@ -1,3 +1,19 @@
+// Package main implements the alerts API service for serving police alert data.
+//
+// This service is deployed on Google Cloud Run and provides a public HTTPS API
+// that serves alert data to the frontend dashboard. It implements:
+//   - Firebase Anonymous Authentication for user identification
+//   - Per-user rate limiting to prevent abuse
+//   - GZIP compression for efficient data transfer
+//   - JSONL streaming for large datasets
+//   - Intelligent data sourcing from GCS archives or live Firestore
+//
+// Environment Variables:
+//   - GCP_PROJECT_ID: Google Cloud project ID (required)
+//   - FIRESTORE_COLLECTION: Firestore collection name (default: "police_alerts")
+//   - GCS_BUCKET_NAME: GCS bucket for archived data (required)
+//   - RATE_LIMIT_PER_MINUTE: Per-user rate limit (default: 30)
+//   - PORT: HTTP server port (default: "8080")
 package main
 
 import (

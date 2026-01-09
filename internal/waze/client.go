@@ -1,3 +1,8 @@
+// Package waze provides a client for interacting with the Waze live traffic API.
+//
+// This package handles fetching traffic alerts from Waze's GeoRSS endpoint,
+// supporting multiple geographic bounding boxes and automatic deduplication
+// of alerts across overlapping regions.
 package waze
 
 import (

@@ -1,12 +1,15 @@
-// Console output enabled for debugging
-// (function () {
-//     const noop = function () { };
-//     console.log = noop;
-//     console.warn = noop;
-//     console.error = noop;
-//     console.info = noop;
-//     console.debug = noop;
-// })();
+/**
+ * Waze Police Alert Dashboard
+ * 
+ * A single-page application for visualizing police alert data on an interactive map.
+ * Uses Firebase Anonymous Authentication and streams data from the alerts-service API.
+ * 
+ * Key Features:
+ * - Multi-date selection with Flatpickr
+ * - Real-time JSONL streaming for efficient data loading
+ * - Leaflet.js map with timeline visualization
+ * - Dynamic filtering by alert type, street, and verification status
+ */
 
 // Global state
 let allAlerts = []; // Will store alerts as array

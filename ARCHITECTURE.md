@@ -11,7 +11,7 @@ This project is a cloud-native, event-driven system designed to scrape, store, a
 The primary components are:
 *   A **Scraper Service** that periodically fetches data from Waze.
 *   A **Firestore Database** that serves as the central data store for fresh alerts.
-*   An **Alerts Service** (API) that provides data to the frontend dashboard.
+*   An **Alerts Service** (API) that provides data to the frontend dashboard with Firebase Authentication and rate limiting.
 *   An **Archive Service** that moves older data to long-term storage.
 *   A **Data Analysis Dashboard**, which is a vanilla JavaScript single-page application for visualization.
 
@@ -87,14 +87,16 @@ graph TD
 
 ### 3.2. Alerts Service (`alerts-service`)
 *   **Technology**: Go, deployed on Cloud Run.
-*   **Trigger**: Publicly accessible HTTPS endpoint invoked by the frontend dashboard.
+*   **Trigger**: HTTPS endpoint protected by Firebase Anonymous Authentication.
 *   **Responsibilities**:
-    1.  Receives a request from the frontend containing a list of dates.
-    2.  For each date, it first checks if a pre-computed archive exists in Google Cloud Storage (GCS).
-    3.  If an archive exists, it streams the data directly from the GCS file.
-    4.  If no archive exists, it queries Firestore for alerts within that date's 24-hour UTC window.
-    5.  Streams the results back to the frontend as a single, deduplicated JSONL stream.
-    6.  Acts as a secure proxy, preventing direct database access from the browser.
+    1.  Authenticates incoming requests using Firebase ID tokens.
+    2.  Enforces per-user rate limiting (configurable, default 30 requests/minute).
+    3.  Receives a request from the frontend containing a list of dates.
+    4.  For each date, it first checks if a pre-computed archive exists in Google Cloud Storage (GCS).
+    5.  If an archive exists, it streams the data directly from the GCS file.
+    6.  If no archive exists, it queries Firestore for alerts within that date's 24-hour UTC window.
+    7.  Streams the results back to the frontend as a single, deduplicated JSONL stream with GZIP compression.
+    8.  Acts as a secure proxy, preventing direct database access from the browser.
 
 ### 3.3. Archive Service (`archive-service`)
 *   **Technology**: Go, deployed on Cloud Run.
@@ -109,11 +111,12 @@ graph TD
 ### 3.4. Data Analysis Dashboard
 *   **Technology**: Vanilla JavaScript (ES6), HTML5, CSS3, hosted on Firebase Hosting.
 *   **Responsibilities**:
-    1.  Provides a user interface for selecting dates and applying filters.
-    2.  Constructs and sends API requests to the `alerts-service`.
-    3.  Parses the streamed JSONL response and loads the data into memory.
-    4.  Performs client-side filtering, sorting, and statistical calculations.
-    5.  Renders the filtered alerts on an interactive map (Leaflet.js) and in a detailed list.
+    1.  Authenticates users via Firebase Anonymous Authentication and manages ID token refresh.
+    2.  Provides a user interface for selecting dates and applying filters.
+    3.  Constructs and sends authenticated API requests to the `alerts-service` with Bearer tokens.
+    4.  Parses the streamed JSONL response and loads the data into memory.
+    5.  Performs client-side filtering, sorting, and statistical calculations.
+    6.  Renders the filtered alerts on an interactive map (Leaflet.js with Timeline plugin) and in a detailed list.
 
 ---
 
@@ -130,6 +133,10 @@ graph TD
 *   **Vanilla JavaScript**: Selected for the frontend to create a lightweight, fast, and dependency-free application. This approach avoids the need for a complex build pipeline and demonstrates strong foundational web development skills.
 
 *   **GitHub Actions**: Used for CI/CD to automate the process of building, testing, and deploying the Go microservices to Cloud Run whenever code is pushed to the `main` branch.
+
+*   **Terraform**: Adopted for Infrastructure as Code (IaC) to manage all GCP resources declaratively. Enables version control, reproducibility, and automated infrastructure deployments with proper state management.
+
+*   **Firebase Authentication**: Implemented Anonymous Authentication to protect the API endpoints from abuse while maintaining a frictionless user experience. Combined with per-user rate limiting for cost control and service protection.
 
 ---
 
