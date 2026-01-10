@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/Lllllllleong/wazePoliceScraperGCP/internal/models"
 )
@@ -172,18 +171,8 @@ func createMockWazeServer(response models.WazeGeoRSSResponse, statusCode int) *h
 	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(statusCode)
-		json.NewEncoder(w).Encode(response)
+		_ = json.NewEncoder(w).Encode(response)
 	}))
-}
-
-// createClientWithMockServer creates a Client that uses the given test server
-func createClientWithMockServer(serverURL string) *Client {
-	return &Client{
-		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
-		},
-		stats: &models.ScrapingStats{},
-	}
 }
 
 // TestGetAlertsWithMockServer tests GetAlerts with a mock HTTP server
@@ -473,7 +462,7 @@ func TestInvalidJSONResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("this is not valid json"))
+		_, _ = w.Write([]byte("this is not valid json"))
 	}))
 	defer server.Close()
 
