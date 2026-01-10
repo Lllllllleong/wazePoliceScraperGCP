@@ -4,6 +4,7 @@
 [![codecov](https://codecov.io/gh/Lllllllleong/wazePoliceScraperGCP/graph/badge.svg)](https://codecov.io/gh/Lllllllleong/wazePoliceScraperGCP)
 [![Go Report Card](https://goreportcard.com/badge/github.com/Lllllllleong/wazePoliceScraperGCP)](https://goreportcard.com/report/github.com/Lllllllleong/wazePoliceScraperGCP)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Branch Protection](https://img.shields.io/badge/Branch%20Protection-Enabled-success)](https://github.com/Lllllllleong/wazePoliceScraperGCP/settings/rules)
 
 A professional, cloud-native system for scraping, storing, and analyzing police alert data from Waze's live traffic feed. This project demonstrates a complete, production-ready application built with a microservices architecture on Google Cloud Platform.
 
