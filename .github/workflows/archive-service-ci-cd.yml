@@ -37,7 +37,7 @@ env:
 
 jobs:
   test:
-    name: Test
+    name: Test Archive Service
     runs-on: ubuntu-latest
 
     steps:
