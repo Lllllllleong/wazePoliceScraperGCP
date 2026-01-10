@@ -1,10 +1,10 @@
 # Variable values for production environment
 # Note: Update container image tags to match your latest deployed versions
 
-project_id         = "wazepolicescrapergcp"
-region             = "us-central1"
-environment        = "prod"
-gcs_archive_bucket = "wazepolicescrapergcp-archive"
+project_id             = "wazepolicescrapergcp"
+region                 = "us-central1"
+environment            = "prod"
+gcs_archive_bucket     = "wazepolicescrapergcp-archive"
 terraform_state_bucket = "wazepolicescrapergcp-terraform-state"
 
 # Container images - update these with your current commit SHA

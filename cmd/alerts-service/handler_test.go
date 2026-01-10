@@ -4,13 +4,18 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/Lllllllleong/wazePoliceScraperGCP/internal/models"
+	"github.com/Lllllllleong/wazePoliceScraperGCP/internal/storage"
 	"golang.org/x/time/rate"
 )
 
@@ -640,3 +645,560 @@ func TestVaryHeaderSet(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// Tests using dependency injection with mocks
+// =============================================================================
+
+// TestAlertsHandlerWithGCSArchive tests the handler when data is available from GCS archive
+func TestAlertsHandlerWithGCSArchive(t *testing.T) {
+	// Create mock data that would be in a GCS archive file
+	archiveData := `{"UUID":"alert-1","Type":"POLICE_VISIBLE","SubType":"POLICE_VISIBLE","PubMillis":1704067200000}
+{"UUID":"alert-2","Type":"POLICE_VISIBLE","SubType":"POLICE_VISIBLE","PubMillis":1704067201000}
+`
+
+	// Create mock GCS client that returns archive data
+	mockGCS := &storage.MockGCSClient{
+		BucketFunc: func(name string) storage.GCSBucketHandle {
+			return &storage.MockGCSBucketHandle{
+				ObjectFunc: func(objName string) storage.GCSObjectHandle {
+					return &storage.MockGCSObjectHandle{
+						NewReaderFunc: func(ctx context.Context) (io.ReadCloser, error) {
+							return io.NopCloser(strings.NewReader(archiveData)), nil
+						},
+					}
+				},
+			}
+		},
+	}
+
+	s := &server{
+		firestoreClient: &storage.MockAlertStore{},
+		storageClient:   mockGCS,
+		bucketName:      "test-bucket",
+		limiters:        make(map[string]*rate.Limiter),
+		ratePerMinute:   30,
+	}
+
+	req, err := http.NewRequest("GET", "/police_alerts?dates=2024-01-01", nil)
+	if err != nil {
+		t.Fatalf("could not create request: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(s.alertsHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+
+	// Verify JSONL content type
+	contentType := rr.Header().Get("Content-Type")
+	if contentType != "application/jsonl" {
+		t.Errorf("expected Content-Type 'application/jsonl', got %q", contentType)
+	}
+
+	// Verify response contains the archive data
+	body := rr.Body.String()
+	if !strings.Contains(body, "alert-1") {
+		t.Errorf("expected response to contain 'alert-1', got %q", body)
+	}
+	if !strings.Contains(body, "alert-2") {
+		t.Errorf("expected response to contain 'alert-2', got %q", body)
+	}
+}
+
+// TestAlertsHandlerFirestoreFallback tests the handler falls back to Firestore when GCS archive doesn't exist
+func TestAlertsHandlerFirestoreFallback(t *testing.T) {
+	// Create mock Firestore client that returns alerts
+	mockStore := &storage.MockAlertStore{
+		GetPoliceAlertsByDateRangeFunc: func(ctx context.Context, startDate, endDate time.Time) ([]models.PoliceAlert, error) {
+			return []models.PoliceAlert{
+				{
+					UUID:        "firestore-alert-1",
+					Type:        "POLICE_VISIBLE",
+					Subtype:     "POLICE_VISIBLE",
+					PublishTime: time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC),
+				},
+			}, nil
+		},
+	}
+
+	// Create mock GCS client that returns object not found
+	mockGCS := &storage.MockGCSClient{
+		BucketFunc: func(name string) storage.GCSBucketHandle {
+			return &storage.MockGCSBucketHandle{
+				ObjectFunc: func(objName string) storage.GCSObjectHandle {
+					return &storage.MockGCSObjectHandle{
+						NewReaderFunc: func(ctx context.Context) (io.ReadCloser, error) {
+							return nil, storage.ErrObjectNotExist
+						},
+					}
+				},
+			}
+		},
+	}
+
+	s := &server{
+		firestoreClient: mockStore,
+		storageClient:   mockGCS,
+		bucketName:      "test-bucket",
+		limiters:        make(map[string]*rate.Limiter),
+		ratePerMinute:   30,
+	}
+
+	req, err := http.NewRequest("GET", "/police_alerts?dates=2024-01-01", nil)
+	if err != nil {
+		t.Fatalf("could not create request: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(s.alertsHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+
+	// Verify Firestore was called
+	if mockStore.CallLog.GetPoliceAlertsByDateRangeCalls == 0 {
+		t.Error("expected Firestore GetPoliceAlertsByDateRange to be called")
+	}
+
+	// Verify response contains the Firestore data
+	body := rr.Body.String()
+	if !strings.Contains(body, "firestore-alert-1") {
+		t.Errorf("expected response to contain 'firestore-alert-1', got %q", body)
+	}
+}
+
+// TestAlertsHandlerMultipleDates tests the handler with multiple dates
+func TestAlertsHandlerMultipleDates(t *testing.T) {
+	var archiveCallCount int32 // Use atomic counter for goroutine safety
+
+	// Create mock GCS client that tracks calls
+	mockGCS := &storage.MockGCSClient{
+		BucketFunc: func(name string) storage.GCSBucketHandle {
+			return &storage.MockGCSBucketHandle{
+				ObjectFunc: func(objName string) storage.GCSObjectHandle {
+					return &storage.MockGCSObjectHandle{
+						NewReaderFunc: func(ctx context.Context) (io.ReadCloser, error) {
+							atomic.AddInt32(&archiveCallCount, 1)
+							data := fmt.Sprintf(`{"UUID":"alert-for-%s","Type":"POLICE_VISIBLE"}
+`, strings.TrimSuffix(objName, ".jsonl"))
+							return io.NopCloser(strings.NewReader(data)), nil
+						},
+					}
+				},
+			}
+		},
+	}
+
+	s := &server{
+		firestoreClient: &storage.MockAlertStore{},
+		storageClient:   mockGCS,
+		bucketName:      "test-bucket",
+		limiters:        make(map[string]*rate.Limiter),
+		ratePerMinute:   30,
+	}
+
+	req, err := http.NewRequest("GET", "/police_alerts?dates=2024-01-01,2024-01-02,2024-01-03", nil)
+	if err != nil {
+		t.Fatalf("could not create request: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(s.alertsHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+
+	// Verify GCS was called for each date
+	if atomic.LoadInt32(&archiveCallCount) != 3 {
+		t.Errorf("expected 3 GCS calls, got %d", atomic.LoadInt32(&archiveCallCount))
+	}
+}
+
+// TestAlertsHandlerEmptyArchive tests the handler with an empty archive file
+func TestAlertsHandlerEmptyArchive(t *testing.T) {
+	// Create mock GCS client that returns empty data
+	mockGCS := &storage.MockGCSClient{
+		BucketFunc: func(name string) storage.GCSBucketHandle {
+			return &storage.MockGCSBucketHandle{
+				ObjectFunc: func(objName string) storage.GCSObjectHandle {
+					return &storage.MockGCSObjectHandle{
+						NewReaderFunc: func(ctx context.Context) (io.ReadCloser, error) {
+							return io.NopCloser(strings.NewReader("")), nil
+						},
+					}
+				},
+			}
+		},
+	}
+
+	s := &server{
+		firestoreClient: &storage.MockAlertStore{},
+		storageClient:   mockGCS,
+		bucketName:      "test-bucket",
+		limiters:        make(map[string]*rate.Limiter),
+		ratePerMinute:   30,
+	}
+
+	req, err := http.NewRequest("GET", "/police_alerts?dates=2024-01-01", nil)
+	if err != nil {
+		t.Fatalf("could not create request: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(s.alertsHandler)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+}
+
+// TestAlertsHandlerGCSError tests the handler when GCS returns an unexpected error
+func TestAlertsHandlerGCSError(t *testing.T) {
+	// Create mock GCS client that returns an error
+	mockGCS := &storage.MockGCSClient{
+		BucketFunc: func(name string) storage.GCSBucketHandle {
+			return &storage.MockGCSBucketHandle{
+				ObjectFunc: func(objName string) storage.GCSObjectHandle {
+					return &storage.MockGCSObjectHandle{
+						NewReaderFunc: func(ctx context.Context) (io.ReadCloser, error) {
+							return nil, errors.New("unexpected GCS error")
+						},
+					}
+				},
+			}
+		},
+	}
+
+	s := &server{
+		firestoreClient: &storage.MockAlertStore{},
+		storageClient:   mockGCS,
+		bucketName:      "test-bucket",
+		limiters:        make(map[string]*rate.Limiter),
+		ratePerMinute:   30,
+	}
+
+	req, err := http.NewRequest("GET", "/police_alerts?dates=2024-01-01", nil)
+	if err != nil {
+		t.Fatalf("could not create request: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(s.alertsHandler)
+	handler.ServeHTTP(rr, req)
+
+	// The handler should still return OK but with no data (error is logged)
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+}
+
+// TestAlertsHandlerFirestoreError tests the handler when Firestore returns an error
+func TestAlertsHandlerFirestoreError(t *testing.T) {
+	// Create mock Firestore client that returns an error
+	mockStore := &storage.MockAlertStore{
+		GetPoliceAlertsByDateRangeFunc: func(ctx context.Context, startDate, endDate time.Time) ([]models.PoliceAlert, error) {
+			return nil, errors.New("firestore connection error")
+		},
+	}
+
+	// Create mock GCS client that returns object not found (to trigger Firestore fallback)
+	mockGCS := &storage.MockGCSClient{
+		BucketFunc: func(name string) storage.GCSBucketHandle {
+			return &storage.MockGCSBucketHandle{
+				ObjectFunc: func(objName string) storage.GCSObjectHandle {
+					return &storage.MockGCSObjectHandle{
+						NewReaderFunc: func(ctx context.Context) (io.ReadCloser, error) {
+							return nil, storage.ErrObjectNotExist
+						},
+					}
+				},
+			}
+		},
+	}
+
+	s := &server{
+		firestoreClient: mockStore,
+		storageClient:   mockGCS,
+		bucketName:      "test-bucket",
+		limiters:        make(map[string]*rate.Limiter),
+		ratePerMinute:   30,
+	}
+
+	req, err := http.NewRequest("GET", "/police_alerts?dates=2024-01-01", nil)
+	if err != nil {
+		t.Fatalf("could not create request: %v", err)
+	}
+
+	rr := httptest.NewRecorder()
+	handler := http.HandlerFunc(s.alertsHandler)
+	handler.ServeHTTP(rr, req)
+
+	// The handler should still return OK but with no data (error is logged)
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+}
+
+// =============================================================================
+// Auth Middleware Tests with Mocked Firebase Auth
+// =============================================================================
+
+// TestAuthMiddlewareValidToken tests auth middleware accepts valid token
+func TestAuthMiddlewareValidToken(t *testing.T) {
+	mockAuth := &storage.MockFirebaseAuthClient{
+		VerifyIDTokenFunc: func(ctx context.Context, idToken string) (*storage.FirebaseToken, error) {
+			if idToken == "valid-token" {
+				return &storage.FirebaseToken{UID: "test-user-123"}, nil
+			}
+			return nil, errors.New("invalid token")
+		},
+	}
+
+	s := &server{
+		firebaseAuth:  mockAuth,
+		limiters:      make(map[string]*rate.Limiter),
+		ratePerMinute: 30,
+	}
+
+	// Track if inner handler was called and check context
+	var capturedUID string
+	innerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		uid, ok := r.Context().Value(uidContextKey).(string)
+		if ok {
+			capturedUID = uid
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := s.authMiddleware(innerHandler)
+
+	req, _ := http.NewRequest("GET", "/police_alerts", nil)
+	req.Header.Set("Authorization", "Bearer valid-token")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+
+	// Verify UID was set in context
+	if capturedUID != "test-user-123" {
+		t.Errorf("expected UID 'test-user-123' in context, got %q", capturedUID)
+	}
+
+	// Verify mock was called
+	if mockAuth.CallLog.VerifyIDTokenCalls != 1 {
+		t.Errorf("expected 1 VerifyIDToken call, got %d", mockAuth.CallLog.VerifyIDTokenCalls)
+	}
+	if mockAuth.CallLog.LastToken != "valid-token" {
+		t.Errorf("expected last token 'valid-token', got %q", mockAuth.CallLog.LastToken)
+	}
+}
+
+// TestAuthMiddlewareInvalidToken tests auth middleware rejects invalid token
+func TestAuthMiddlewareInvalidToken(t *testing.T) {
+	mockAuth := &storage.MockFirebaseAuthClient{
+		VerifyIDTokenFunc: func(ctx context.Context, idToken string) (*storage.FirebaseToken, error) {
+			return nil, errors.New("token has expired")
+		},
+	}
+
+	s := &server{
+		firebaseAuth:  mockAuth,
+		limiters:      make(map[string]*rate.Limiter),
+		ratePerMinute: 30,
+	}
+
+	innerHandlerCalled := false
+	innerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		innerHandlerCalled = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := s.authMiddleware(innerHandler)
+
+	req, _ := http.NewRequest("GET", "/police_alerts", nil)
+	req.Header.Set("Authorization", "Bearer expired-token")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected status %d, got %d", http.StatusUnauthorized, rr.Code)
+	}
+
+	// Verify inner handler was not called
+	if innerHandlerCalled {
+		t.Error("inner handler should not have been called for invalid token")
+	}
+}
+
+// TestAuthMiddlewareEmptyBearerToken tests auth middleware rejects empty Bearer token
+func TestAuthMiddlewareEmptyBearerToken(t *testing.T) {
+	mockAuth := &storage.MockFirebaseAuthClient{
+		VerifyIDTokenFunc: func(ctx context.Context, idToken string) (*storage.FirebaseToken, error) {
+			if idToken == "" {
+				return nil, errors.New("empty token")
+			}
+			return &storage.FirebaseToken{UID: "user"}, nil
+		},
+	}
+
+	s := &server{
+		firebaseAuth:  mockAuth,
+		limiters:      make(map[string]*rate.Limiter),
+		ratePerMinute: 30,
+	}
+
+	innerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := s.authMiddleware(innerHandler)
+
+	req, _ := http.NewRequest("GET", "/police_alerts", nil)
+	req.Header.Set("Authorization", "Bearer ")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	// Empty token should be rejected by Firebase verification
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected status %d for empty bearer token, got %d", http.StatusUnauthorized, rr.Code)
+	}
+}
+
+// =============================================================================
+// Integration-style Tests with Full Middleware Chain
+// =============================================================================
+
+// TestFullMiddlewareChain tests the complete middleware chain with mocks
+func TestFullMiddlewareChain(t *testing.T) {
+	// Create mock Firebase Auth
+	mockAuth := &storage.MockFirebaseAuthClient{
+		VerifyIDTokenFunc: func(ctx context.Context, idToken string) (*storage.FirebaseToken, error) {
+			return &storage.FirebaseToken{UID: "integration-test-user"}, nil
+		},
+	}
+
+	// Create mock GCS client
+	archiveData := `{"UUID":"integration-alert","Type":"POLICE_VISIBLE"}
+`
+	mockGCS := &storage.MockGCSClient{
+		BucketFunc: func(name string) storage.GCSBucketHandle {
+			return &storage.MockGCSBucketHandle{
+				ObjectFunc: func(objName string) storage.GCSObjectHandle {
+					return &storage.MockGCSObjectHandle{
+						NewReaderFunc: func(ctx context.Context) (io.ReadCloser, error) {
+							return io.NopCloser(strings.NewReader(archiveData)), nil
+						},
+					}
+				},
+			}
+		},
+	}
+
+	s := &server{
+		firestoreClient: &storage.MockAlertStore{},
+		storageClient:   mockGCS,
+		bucketName:      "test-bucket",
+		firebaseAuth:    mockAuth,
+		limiters:        make(map[string]*rate.Limiter),
+		ratePerMinute:   30,
+	}
+
+	// Build full middleware chain
+	handler := corsMiddleware(s.authMiddleware(s.rateLimitMiddleware(gzipMiddleware(s.alertsHandler))))
+
+	req, _ := http.NewRequest("GET", "/police_alerts?dates=2024-01-01", nil)
+	req.Header.Set("Origin", "https://wazepolicescrapergcp.web.app")
+	req.Header.Set("Authorization", "Bearer valid-test-token")
+	req.Header.Set("Accept-Encoding", "gzip")
+
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+
+	// Verify CORS header
+	if rr.Header().Get("Access-Control-Allow-Origin") != "https://wazepolicescrapergcp.web.app" {
+		t.Errorf("expected CORS origin header, got %q", rr.Header().Get("Access-Control-Allow-Origin"))
+	}
+
+	// Verify gzip encoding
+	if rr.Header().Get("Content-Encoding") != "gzip" {
+		t.Errorf("expected gzip encoding, got %q", rr.Header().Get("Content-Encoding"))
+	}
+
+	// Decompress and verify content
+	reader, err := gzip.NewReader(rr.Body)
+	if err != nil {
+		t.Fatalf("failed to create gzip reader: %v", err)
+	}
+	defer reader.Close()
+
+	body, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatalf("failed to read gzip body: %v", err)
+	}
+
+	if !strings.Contains(string(body), "integration-alert") {
+		t.Errorf("expected response to contain 'integration-alert', got %q", string(body))
+	}
+}
+
+// TestRateLimitExceeded tests that rate limiting is enforced
+func TestRateLimitExceeded(t *testing.T) {
+	mockAuth := &storage.MockFirebaseAuthClient{
+		VerifyIDTokenFunc: func(ctx context.Context, idToken string) (*storage.FirebaseToken, error) {
+			return &storage.FirebaseToken{UID: "rate-limit-test-user"}, nil
+		},
+	}
+
+	s := &server{
+		firebaseAuth:  mockAuth,
+		limiters:      make(map[string]*rate.Limiter),
+		ratePerMinute: 1, // Very low limit for testing
+	}
+
+	innerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	handler := s.authMiddleware(s.rateLimitMiddleware(innerHandler))
+
+	// First request should succeed
+	req1, _ := http.NewRequest("GET", "/police_alerts", nil)
+	req1.Header.Set("Authorization", "Bearer token")
+	rr1 := httptest.NewRecorder()
+	handler.ServeHTTP(rr1, req1)
+
+	if rr1.Code != http.StatusOK {
+		t.Errorf("first request: expected status %d, got %d", http.StatusOK, rr1.Code)
+	}
+
+	// Second request should be rate limited (burst of 1 used up)
+	// With rate of 1/minute and burst of 1, the second immediate request should fail
+	req2, _ := http.NewRequest("GET", "/police_alerts", nil)
+	req2.Header.Set("Authorization", "Bearer token")
+	rr2 := httptest.NewRecorder()
+	handler.ServeHTTP(rr2, req2)
+
+	// Note: The rate limiter has burst=ratePerMinute=1, so second request should fail
+	if rr2.Code != http.StatusTooManyRequests {
+		t.Errorf("second request: expected status %d (rate limited), got %d", http.StatusTooManyRequests, rr2.Code)
+	}
+
+	// Verify Retry-After header
+	if rr2.Header().Get("Retry-After") != "60" {
+		t.Errorf("expected Retry-After header '60', got %q", rr2.Header().Get("Retry-After"))
+	}
+}

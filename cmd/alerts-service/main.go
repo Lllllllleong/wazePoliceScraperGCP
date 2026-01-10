@@ -35,7 +35,6 @@ import (
 
 	gcs "cloud.google.com/go/storage"
 	firebase "firebase.google.com/go/v4"
-	"firebase.google.com/go/v4/auth"
 	"github.com/Lllllllleong/wazePoliceScraperGCP/internal/models"
 	"github.com/Lllllllleong/wazePoliceScraperGCP/internal/storage"
 	"golang.org/x/time/rate"
@@ -57,10 +56,10 @@ type requestMetrics struct {
 }
 
 type server struct {
-	firestoreClient *storage.FirestoreClient
-	storageClient   *gcs.Client
+	firestoreClient storage.AlertStore
+	storageClient   storage.GCSClient
 	bucketName      string
-	firebaseAuth    *auth.Client
+	firebaseAuth    storage.FirebaseAuthClient
 	// Rate limiting
 	limiters      map[string]*rate.Limiter
 	limitersMutex sync.RWMutex
@@ -131,9 +130,9 @@ func main() {
 
 	s := &server{
 		firestoreClient: firestoreClient,
-		storageClient:   storageClient,
+		storageClient:   &storage.GCSClientAdapter{Client: storageClient},
 		bucketName:      bucketName,
-		firebaseAuth:    firebaseAuth,
+		firebaseAuth:    &storage.FirebaseAuthClientAdapter{Client: firebaseAuth},
 		limiters:        make(map[string]*rate.Limiter),
 		ratePerMinute:   ratePerMinute,
 	}
@@ -476,7 +475,7 @@ func (s *server) alertsHandler(w http.ResponseWriter, r *http.Request) {
 						}
 					}
 					reader.Close()
-				} else if err == gcs.ErrObjectNotExist {
+				} else if storage.IsObjectNotExist(err) {
 					// Archive does not exist, query Firestore
 					startOfDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, loc)
 					endOfDay := startOfDay.Add(24*time.Hour - time.Second)
