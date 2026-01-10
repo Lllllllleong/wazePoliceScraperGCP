@@ -4,16 +4,23 @@
   "description": "Police Alert Analysis Dashboard",
   "scripts": {
     "serve": "firebase serve",
-    "deploy": "firebase deploy"
+    "deploy": "firebase deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "firebase": "^12.3.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "vitest": "^1.6.0",
+    "jsdom": "^24.1.0",
+    "@vitest/coverage-v8": "^1.6.0"
+  },
   "keywords": [
     "police-alerts",
     "firebase",
     "leaflet",
-    "dashboard" 
+    "dashboard"
   ]
 }
