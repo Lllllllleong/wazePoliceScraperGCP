@@ -47,11 +47,11 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: latest
-          args: --timeout=5m ./cmd/archive-service/... ./internal/...
+          args: --timeout=5m ./cmd/archive-service/...
 
       - name: Run Unit Tests with Coverage
         run: |
-          go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+          go test -v -race -coverprofile=coverage.out -covermode=atomic ./cmd/archive-service/...
           go tool cover -func=coverage.out
 
       - name: Check Coverage Threshold

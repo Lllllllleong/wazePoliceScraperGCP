@@ -39,20 +39,39 @@ flags:
       - cmd/scraper-service/
       - internal/
     carryforward: true
+  scraper-service-integration:
+    paths:
+      - internal/storage/
+    carryforward: true
   alerts-service:
     paths:
       - cmd/alerts-service/
       - internal/
+    carryforward: true
+  alerts-service-integration:
+    paths:
+      - internal/storage/
     carryforward: true
   archive-service:
     paths:
       - cmd/archive-service/
       - internal/
     carryforward: true
+  archive-service-integration:
+    paths:
+      - internal/storage/
+    carryforward: true
+  frontend:
+    paths:
+      - dataAnalysis/public/
+      - dataAnalysis/tests/
+    carryforward: true
 
 ignore:
   - "**/*_test.go"
   - "**/testdata/**"
-  - "dataAnalysis/**"
+  - "dataAnalysis/firebase.json"
+  - "dataAnalysis/package*.json"
+  - "dataAnalysis/vitest.config.js"
 
 

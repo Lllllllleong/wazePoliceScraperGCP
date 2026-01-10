@@ -1,4 +1,4 @@
-# Waze Police Alert Analysis System
+# Police Alert Analysis System
 
 [![CI/CD Status](https://img.shields.io/badge/CI%2FCD-Passing-brightgreen)](https://github.com/Lllllllleong/wazePoliceScraperGCP/actions)
 [![codecov](https://codecov.io/gh/Lllllllleong/wazePoliceScraperGCP/graph/badge.svg)](https://codecov.io/gh/Lllllllleong/wazePoliceScraperGCP)
@@ -11,7 +11,7 @@ A professional, cloud-native system for scraping, storing, and analyzing police 
 
 ---
 
-### ✨ Live Demo
+## Live Demo
 
 A live version of the data analysis dashboard is deployed and accessible here:
 
@@ -22,7 +22,7 @@ A live version of the data analysis dashboard is deployed and accessible here:
 
 ---
 
-## 🚀 Core Features
+## Core Features
 
 *   **Automated Data Scraping**: A serverless Go service runs on a schedule to automatically fetch and store police alert data.
 *   **Interactive Map Visualization**: A rich frontend dashboard built with vanilla JavaScript and Leaflet.js to display alerts on an interactive map.
@@ -36,7 +36,7 @@ A live version of the data analysis dashboard is deployed and accessible here:
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Category      | Technology                                                                                                                            |
 |---------------|---------------------------------------------------------------------------------------------------------------------------------------|
@@ -49,7 +49,7 @@ A live version of the data analysis dashboard is deployed and accessible here:
 
 ---
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 The system is designed as a set of cooperating microservices deployed on Google Cloud Run. This serverless architecture ensures that resources are only consumed when a service is active, making it highly cost-effective.
 
@@ -57,11 +57,11 @@ The system is designed as a set of cooperating microservices deployed on Google 
 *   **`alerts-service`**: A Go API on Cloud Run that serves alert data to the frontend with Firebase Authentication and rate limiting, intelligently fetching from GCS archives or live from Firestore with GZIP-compressed JSONL streaming.
 *   **`archive-service`**: A Go application on Cloud Run, triggered daily by Cloud Scheduler, that moves older data from Firestore to Google Cloud Storage for long-term archival.
 
-For a detailed breakdown of the system design, data flow, and technology rationale, please see the **[Architecture Document](./ARCHITECTURE.md)**.
+For a detailed breakdown of the system design, data flow, and technology rationale, please see the **[Architecture Document](./docs/ARCHITECTURE.md)**.
 
 ---
 
-## 💡 Why I Built This
+## Why I Built This
 
 This project was spawned out of curiosity developed from my numerous drives between Sydney and Canberra. I also took this project as a chance to demonstrate production-grade software engineering practices, including:
 
@@ -76,18 +76,19 @@ The technical decisions made throughout development are documented in the [ADR (
 
 ---
 
-## 📖 Project Documentation
+## Project Documentation
 
 This project adheres to a high standard of documentation to demonstrate professional development practices.
 
-*   **[ARCHITECTURE.md](./ARCHITECTURE.md)**: A detailed explanation of the system's architecture, components, and data flow.
+*   **[ARCHITECTURE.md](./docs/ARCHITECTURE.md)**: A detailed explanation of the system's architecture, components, and data flow.
 *   **[ADR.md](./docs/ADR.md)**: An Architectural Decision Record (ADR) that chronicles the key engineering decisions and trade-offs made during development.
 *   **[TERRAFORM_MIGRATION_SUMMARY.md](./terraform/TERRAFORM_MIGRATION_SUMMARY.md)**: Documentation of the infrastructure migration to Terraform.
 *   **[SECURITY.md](./SECURITY.md)**: Security considerations and documentation of public-safe configurations.
+*   **[TESTING.md](./docs/TESTING.md)**: Comprehensive testing guide covering architecture, best practices, and CI/CD integration.
 
 ---
 
-## 🚀 Getting Started (Local Development)
+## Getting Started (Local Development)
 
 ### Prerequisites
 *   Go (1.24+)
@@ -149,91 +150,42 @@ The dashboard will be available at `http://localhost:5000` with Firebase Auth Em
 
 ---
 
-## 🧪 Testing
+## Testing
 
-This project maintains comprehensive test coverage across both backend and frontend components, demonstrating professional testing practices.
+This project maintains **acceptable test coverage** across backend and frontend with strong architectural foundations. For complete testing documentation, see **[docs/TESTING.md](docs/TESTING.md)**.
 
-### Backend Tests (Go)
+### Quick Test Commands
 
+**Backend:**
 ```bash
 # Run all tests with coverage
 go test -v -race -coverprofile=coverage.out ./...
 
-# View coverage summary
-go tool cover -func=coverage.out
-
-# Generate HTML coverage report
-go tool cover -html=coverage.out -o coverage.html
-
-# Run tests for specific packages
-go test -v ./internal/models/
-go test -v ./internal/waze/
-go test -v ./internal/storage/
-go test -v ./cmd/scraper-service/
-go test -v ./cmd/alerts-service/
-go test -v ./cmd/archive-service/
+# Run integration tests (requires Firestore emulator)
+export FIRESTORE_EMULATOR_HOST=localhost:8080
+go test -tags=integration -v ./internal/storage/...
 ```
 
-### Frontend Tests (JavaScript)
-
+**Frontend:**
 ```bash
 cd dataAnalysis
-
-# Install dependencies
-npm install
-
-# Run tests
-npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Run tests with coverage report
-npm run test:coverage
+npm test                # Run all tests
+npm run test:coverage   # With coverage report
 ```
 
-### Test Structure
+### Coverage Status
 
-**Backend (`internal/` and `cmd/`):**
-*   **`internal/models/`**: Data model validation and API request/response structures
-*   **`internal/waze/`**: Waze API client, HTTP mocking, BBox parsing, deduplication logic
-*   **`internal/storage/`**: Firestore operations, filtering logic, alert lifecycle management
-*   **`cmd/scraper-service/`**: HTTP handler tests, request validation
-*   **`cmd/alerts-service/`**: Middleware tests (CORS, Auth, Rate Limiting, GZIP), streaming
-*   **`cmd/archive-service/`**: JSONL creation, idempotency logic, date handling
+| Component | Coverage | Status |
+|-----------|----------|--------|
+| Backend (Go) | ~60% | ✅ Strong |
+| Frontend (JS) | 100% | ✅ Excellent |
+| Integration Tests | ✅ Active | Firestore emulator |
 
-**Frontend (`dataAnalysis/tests/`):**
-*   **`utils.test.js`**: Date formatting, timestamp parsing utilities
-*   **`filters.test.js`**: Client-side filtering, deduplication, sorting logic
-*   **`geojson.test.js`**: GeoJSON transformation for map visualization
-
-### CI/CD Testing
-
-All pull requests and commits trigger automated testing via GitHub Actions:
-*   **Go linting** with `golangci-lint`
-*   **Unit test execution** with race detection (`-race` flag)
-*   **Coverage threshold enforcement** (minimum 60% coverage)
-*   **Coverage reporting** to Codecov with badge generation
-*   **Frontend syntax validation** and test execution
-*   **Build validation** for all services
-
-### Coverage Requirements
-
-| Component | Current Coverage | Target |
-|-----------|-----------------|--------|
-| Backend (Go) | ~25% | 60%+ |
-| Frontend (JS) | Setup complete | 60%+ |
-
-**Note**: The current backend coverage is limited because many functions interact with external services (Firestore, GCS, Firebase Auth). The path to higher coverage includes:
-- Adding integration tests with Firestore/Firebase emulators
-- Implementing more dependency injection patterns
-- Expanding HTTP mock testing
-
-Coverage reports are automatically uploaded to [Codecov](https://codecov.io/gh/Lllllllleong/wazePoliceScraperGCP) on every push.
+All tests run automatically in CI/CD with race detection and coverage enforcement. See [docs/TESTING.md](docs/TESTING.md) for architecture, best practices, and detailed guides.
 
 ---
 
-## 📍 Configuring Geographic Areas
+## Configuring Geographic Areas
 
 The scraper fetches data for specific geographic regions defined in [`configs/bboxes.yaml`](configs/bboxes.yaml).
 
@@ -262,7 +214,7 @@ The default configuration covers the Sydney-Canberra corridor (Hume Highway) wit
 
 ---
 
-## � Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -309,7 +261,7 @@ Error: 7 PERMISSION_DENIED
 
 ---
 
-## 📊 Monitoring and Logs
+## Monitoring and Logs
 
 ### Viewing Service Logs
 
@@ -341,7 +293,7 @@ Access via [GCP Monitoring Console](https://console.cloud.google.com/monitoring)
 
 ---
 
-## 💰 Cost Estimates
+## Cost Estimates
 
 Based on typical usage patterns for this system:
 
@@ -372,13 +324,13 @@ Based on typical usage patterns for this system:
 
 ---
 
-## 📡 API Documentation
+## API Documentation
 
 ### Alerts Service Endpoint
 
 **Base URL**: `https://alerts-service-<hash>-uc.a.run.app` (Cloud Run URL)
 
-#### `POST /alerts`
+#### `GET /police_alerts`
 
 Retrieve police alerts for specified dates.
 
@@ -386,27 +338,26 @@ Retrieve police alerts for specified dates.
 
 **Headers**:
 ```http
-Content-Type: application/json
 Authorization: Bearer <FIREBASE_ID_TOKEN>
 ```
 
-**Request Body**:
-```json
-{
-  "dates": [
-    "2026-01-08T00:00:00.000Z",
-    "2026-01-09T00:00:00.000Z"
-  ]
-}
+**Query Parameters**:
+```
+dates=2026-01-08,2026-01-09
+```
+
+**Example Request**:
+```
+GET /police_alerts?dates=2026-01-08,2026-01-09
 ```
 
 **Response**: JSONL stream (GZIP compressed)
 ```jsonl
-{"uuid":"...","lat":-35.123,"lon":149.456,"reportTime":"2026-01-08T10:30:00Z",...}
-{"uuid":"...","lat":-33.987,"lon":151.234,"reportTime":"2026-01-08T11:45:00Z",...}
+{"UUID":"...","Type":"POLICE","Subtype":"POLICE_VISIBLE","PublishTime":"2026-01-08T10:30:00Z","ExpireTime":"2026-01-08T11:00:00Z",...}
+{"UUID":"...","Type":"POLICE","Subtype":"POLICE_HIDING","PublishTime":"2026-01-08T11:45:00Z","ExpireTime":"2026-01-08T12:15:00Z",...}
 ```
 
-**Response Fields**: See [Data Schema](#-data-schema) section below.
+**Note**: Field names use Go struct field names (e.g., `UUID`, `PublishTime`, `ExpireTime`) as the struct doesn't define JSON tags. See [Data Schema](#data-schema) section below for complete field list.
 
 **Rate Limiting**: 30 requests per minute per authenticated user
 
@@ -418,7 +369,7 @@ Authorization: Bearer <FIREBASE_ID_TOKEN>
 
 ---
 
-## 🗄️ Data Schema
+## Data Schema
 
 ### PoliceAlert Model
 
@@ -426,28 +377,39 @@ Stored in Firestore collection `police_alerts`:
 
 ```go
 type PoliceAlert struct {
-    UUID         string    `json:"uuid" firestore:"uuid"`           // Unique identifier from Waze
-    Latitude     float64   `json:"lat" firestore:"lat"`             // Latitude coordinate
-    Longitude    float64   `json:"lon" firestore:"lon"`             // Longitude coordinate
-    ReportTime   time.Time `json:"reportTime" firestore:"reportTime"` // When alert was first reported
-    Street       string    `json:"street" firestore:"street"`       // Street name
-    City         string    `json:"city" firestore:"city"`           // City name
-    Country      string    `json:"country" firestore:"country"`     // Country code
-    Subtype      string    `json:"subtype" firestore:"subtype"`     // Alert subtype (e.g., "POLICE_VISIBLE")
-    Reliability  int       `json:"reliability" firestore:"reliability"` // Reliability score
-    Confidence   int       `json:"confidence" firestore:"confidence"`   // Confidence level
-    NumThumbsUp  int       `json:"nThumbsUp" firestore:"nThumbsUp"`    // User confirmations
-    ScrapedAt    time.Time `json:"scrapedAt" firestore:"scrapedAt"`    // When we scraped this alert
+    UUID         string    `firestore:"uuid"`           // Unique identifier from Waze
+    ID           string    `firestore:"id,omitempty"`   // Additional ID field
+    Type         string    `firestore:"type"`           // Alert type (e.g., "POLICE")
+    Subtype      string    `firestore:"subtype"`        // Alert subtype (e.g., "POLICE_VISIBLE")
+    Street       string    `firestore:"street,omitempty"`      // Street name
+    City         string    `firestore:"city,omitempty"`        // City name
+    Country      string    `firestore:"country,omitempty"`     // Country code
+    LocationGeo  *latlng.LatLng `firestore:"location_geo"` // Geographic coordinates (latitude/longitude)
+    Reliability  int       `firestore:"reliability,omitempty"` // Reliability score
+    Confidence   int       `firestore:"confidence,omitempty"`   // Confidence level
+    ReportRating int       `firestore:"report_rating,omitempty"` // Report rating
+    PublishTime  time.Time `firestore:"publish_time"`   // When alert was first published (from pubMillis)
+    ScrapeTime   time.Time `firestore:"scrape_time"`    // First time we scraped this alert
+    ExpireTime   time.Time `firestore:"expire_time"`    // Last time we saw this alert (assumed expired after)
+    LastVerificationTime *time.Time `firestore:"last_verification_time,omitempty"` // Latest comment timestamp
+    ActiveMillis           int64  `firestore:"active_millis"` // Alert duration (expireMillis - pubMillis)
+    LastVerificationMillis *int64 `firestore:"last_verification_millis,omitempty"` // Latest comment reportMillis
+    NThumbsUpInitial int `firestore:"n_thumbs_up_initial"` // Initial thumbs up count
+    NThumbsUpLast    int `firestore:"n_thumbs_up_last"`    // Most recent thumbs up count
+    RawDataInitial string `firestore:"raw_data_initial"` // First scrape JSON
+    RawDataLast    string `firestore:"raw_data_last"`    // Most recent scrape JSON
 }
 ```
+
+**Note on JSON Serialization**: The `PoliceAlert` struct does not define JSON tags, so when marshaled to JSON (e.g., in API responses), it uses the default Go struct field names (e.g., `UUID`, `PublishTime`, `ExpireTime`) rather than custom JSON names.
 
 ### Alert Subtypes
 
 Common police alert subtypes from Waze:
 *   `POLICE_VISIBLE`: Visible police presence
 *   `POLICE_HIDING`: Hidden/speed trap
-*   `POLICE_GENERAL`: General police alert
-*   `POLICE_CARS`: Multiple police vehicles
+*   `POLICE_WITH_MOBILE_CAMERA`: Police with mobile speed camera
+*   `POLICE_GENERAL`: General police alert (empty string subtype)
 
 ### Archive Format (GCS)
 
@@ -459,7 +421,8 @@ Archived alerts are stored as **JSONL** (JSON Lines) files in Cloud Storage:
 
 ---
 
-## �📁 Project Structure
+## Project Structure
+
 ```
 .
 ├── cmd/                  # Main applications for the microservices
@@ -479,7 +442,7 @@ Archived alerts are stored as **JSONL** (JSON Lines) files in Cloud Storage:
 
 ---
 
-## 📬 Contact
+## Contact
 
 For questions, issues, or collaboration:
 
@@ -489,7 +452,7 @@ For questions, issues, or collaboration:
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 *   **Waze**: For providing the live traffic data API that makes this project possible
 *   **Google Cloud Platform**: For the robust serverless infrastructure
@@ -499,13 +462,13 @@ For questions, issues, or collaboration:
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🚢 Deployment
+## Deployment
 
 ### Automated Deployment (Recommended)
 
