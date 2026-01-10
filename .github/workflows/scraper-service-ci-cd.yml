@@ -17,12 +17,6 @@ on:
     branches:
       - master
       - main
-    paths:
-      - 'cmd/scraper-service/**'
-      - 'internal/**'
-      - 'go.mod'
-      - 'go.sum'
-      - '.github/workflows/scraper-service-ci-cd.yml'
 
 env:
   GCP_PROJECT_ID: "wazepolicescrapergcp"
@@ -37,7 +31,7 @@ env:
 
 jobs:
   test:
-    name: Test
+    name: Test Scraper Service
     runs-on: ubuntu-latest
 
     steps:
