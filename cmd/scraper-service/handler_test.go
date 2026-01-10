@@ -287,7 +287,9 @@ func TestMakeScraperHandler_OnlyPoliceAlerts(t *testing.T) {
 	handler(w, req)
 
 	var response map[string]interface{}
-	json.NewDecoder(w.Body).Decode(&response)
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 
 	// All alerts are POLICE type
 	if alertsFound := response["alerts_found"].(float64); alertsFound != 3 {
@@ -325,7 +327,9 @@ func TestMakeScraperHandler_MultipleBBoxes(t *testing.T) {
 	handler(w, req)
 
 	var response map[string]interface{}
-	json.NewDecoder(w.Body).Decode(&response)
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 
 	if bboxesUsed := response["bboxes_used"].(float64); bboxesUsed != 3 {
 		t.Errorf("Expected 3 bboxes used, got %v", bboxesUsed)
