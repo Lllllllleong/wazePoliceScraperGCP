@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -773,7 +774,7 @@ func TestAlertsHandlerFirestoreFallback(t *testing.T) {
 
 // TestAlertsHandlerMultipleDates tests the handler with multiple dates
 func TestAlertsHandlerMultipleDates(t *testing.T) {
-	archiveCallCount := 0
+	var archiveCallCount int32 // Use atomic counter for goroutine safety
 
 	// Create mock GCS client that tracks calls
 	mockGCS := &storage.MockGCSClient{
@@ -782,7 +783,7 @@ func TestAlertsHandlerMultipleDates(t *testing.T) {
 				ObjectFunc: func(objName string) storage.GCSObjectHandle {
 					return &storage.MockGCSObjectHandle{
 						NewReaderFunc: func(ctx context.Context) (io.ReadCloser, error) {
-							archiveCallCount++
+							atomic.AddInt32(&archiveCallCount, 1)
 							data := fmt.Sprintf(`{"UUID":"alert-for-%s","Type":"POLICE_VISIBLE"}
 `, strings.TrimSuffix(objName, ".jsonl"))
 							return io.NopCloser(strings.NewReader(data)), nil
@@ -815,8 +816,8 @@ func TestAlertsHandlerMultipleDates(t *testing.T) {
 	}
 
 	// Verify GCS was called for each date
-	if archiveCallCount != 3 {
-		t.Errorf("expected 3 GCS calls, got %d", archiveCallCount)
+	if atomic.LoadInt32(&archiveCallCount) != 3 {
+		t.Errorf("expected 3 GCS calls, got %d", atomic.LoadInt32(&archiveCallCount))
 	}
 }
 
