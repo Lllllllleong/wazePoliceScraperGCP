@@ -56,13 +56,13 @@ flowchart TB
 
     %% Data Flow: Archive Pipeline
     SchedulerArchive -->|Trigger| Archive
-    Firestore -->|Read Yesterday's Data| Archive
-    Archive -->|Write JSONL.gz| GCS
+    Firestore -->|Compile Yesterday's Alerts| Archive
+    Archive -->|Write to YYYY-MM-DD.jsonl| GCS
 
     %% Data Flow: Frontend Access
     Dashboard -->|GET /police_alerts<br/>+ Firebase Auth Token| AlertsAPI
-    Firestore -.->|Recent Data| AlertsAPI
-    GCS -.->|Archived Data| AlertsAPI
+    Firestore -.->|Hot Data| AlertsAPI
+    GCS -.->|Cold Data| AlertsAPI
     AlertsAPI -.->|Stream JSONL Response| Dashboard
 ```
 
