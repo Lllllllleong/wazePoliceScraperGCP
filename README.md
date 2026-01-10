@@ -11,7 +11,7 @@ A professional, cloud-native system for scraping, storing, and analyzing police 
 
 ---
 
-### ✨ Live Demo
+## Live Demo
 
 A live version of the data analysis dashboard is deployed and accessible here:
 
@@ -22,7 +22,7 @@ A live version of the data analysis dashboard is deployed and accessible here:
 
 ---
 
-## 🚀 Core Features
+## Core Features
 
 *   **Automated Data Scraping**: A serverless Go service runs on a schedule to automatically fetch and store police alert data.
 *   **Interactive Map Visualization**: A rich frontend dashboard built with vanilla JavaScript and Leaflet.js to display alerts on an interactive map.
@@ -36,7 +36,7 @@ A live version of the data analysis dashboard is deployed and accessible here:
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Category      | Technology                                                                                                                            |
 |---------------|---------------------------------------------------------------------------------------------------------------------------------------|
@@ -49,7 +49,7 @@ A live version of the data analysis dashboard is deployed and accessible here:
 
 ---
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 The system is designed as a set of cooperating microservices deployed on Google Cloud Run. This serverless architecture ensures that resources are only consumed when a service is active, making it highly cost-effective.
 
@@ -57,11 +57,11 @@ The system is designed as a set of cooperating microservices deployed on Google 
 *   **`alerts-service`**: A Go API on Cloud Run that serves alert data to the frontend with Firebase Authentication and rate limiting, intelligently fetching from GCS archives or live from Firestore with GZIP-compressed JSONL streaming.
 *   **`archive-service`**: A Go application on Cloud Run, triggered daily by Cloud Scheduler, that moves older data from Firestore to Google Cloud Storage for long-term archival.
 
-For a detailed breakdown of the system design, data flow, and technology rationale, please see the **[Architecture Document](./ARCHITECTURE.md)**.
+For a detailed breakdown of the system design, data flow, and technology rationale, please see the **[Architecture Document](./docs/ARCHITECTURE.md)**.
 
 ---
 
-## 💡 Why I Built This
+## Why I Built This
 
 This project was spawned out of curiosity developed from my numerous drives between Sydney and Canberra. I also took this project as a chance to demonstrate production-grade software engineering practices, including:
 
@@ -76,18 +76,19 @@ The technical decisions made throughout development are documented in the [ADR (
 
 ---
 
-## 📖 Project Documentation
+## Project Documentation
 
 This project adheres to a high standard of documentation to demonstrate professional development practices.
 
-*   **[ARCHITECTURE.md](./ARCHITECTURE.md)**: A detailed explanation of the system's architecture, components, and data flow.
+*   **[ARCHITECTURE.md](./docs/ARCHITECTURE.md)**: A detailed explanation of the system's architecture, components, and data flow.
 *   **[ADR.md](./docs/ADR.md)**: An Architectural Decision Record (ADR) that chronicles the key engineering decisions and trade-offs made during development.
 *   **[TERRAFORM_MIGRATION_SUMMARY.md](./terraform/TERRAFORM_MIGRATION_SUMMARY.md)**: Documentation of the infrastructure migration to Terraform.
 *   **[SECURITY.md](./SECURITY.md)**: Security considerations and documentation of public-safe configurations.
+*   **[TESTING.md](./docs/TESTING.md)**: Comprehensive testing guide covering architecture, best practices, and CI/CD integration.
 
 ---
 
-## 🚀 Getting Started (Local Development)
+## Getting Started (Local Development)
 
 ### Prerequisites
 *   Go (1.24+)
@@ -149,9 +150,9 @@ The dashboard will be available at `http://localhost:5000` with Firebase Auth Em
 
 ---
 
-## 🧪 Testing
+## Testing
 
-This project maintains **comprehensive test coverage** (87/100 A- grade) across backend and frontend. For complete testing documentation, see **[docs/TESTING.md](docs/TESTING.md)**.
+This project maintains **comprehensive test coverage** across backend and frontend with strong architectural foundations. For complete testing documentation, see **[docs/TESTING.md](docs/TESTING.md)**.
 
 ### Quick Test Commands
 
@@ -184,7 +185,7 @@ All tests run automatically in CI/CD with race detection and coverage enforcemen
 
 ---
 
-## 📍 Configuring Geographic Areas
+## Configuring Geographic Areas
 
 The scraper fetches data for specific geographic regions defined in [`configs/bboxes.yaml`](configs/bboxes.yaml).
 
@@ -213,7 +214,7 @@ The default configuration covers the Sydney-Canberra corridor (Hume Highway) wit
 
 ---
 
-## � Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -260,7 +261,7 @@ Error: 7 PERMISSION_DENIED
 
 ---
 
-## 📊 Monitoring and Logs
+## Monitoring and Logs
 
 ### Viewing Service Logs
 
@@ -292,7 +293,7 @@ Access via [GCP Monitoring Console](https://console.cloud.google.com/monitoring)
 
 ---
 
-## 💰 Cost Estimates
+## Cost Estimates
 
 Based on typical usage patterns for this system:
 
@@ -323,7 +324,7 @@ Based on typical usage patterns for this system:
 
 ---
 
-## 📡 API Documentation
+## API Documentation
 
 ### Alerts Service Endpoint
 
@@ -357,7 +358,7 @@ Authorization: Bearer <FIREBASE_ID_TOKEN>
 {"uuid":"...","lat":-33.987,"lon":151.234,"reportTime":"2026-01-08T11:45:00Z",...}
 ```
 
-**Response Fields**: See [Data Schema](#-data-schema) section below.
+**Response Fields**: See [Data Schema](#data-schema) section below.
 
 **Rate Limiting**: 30 requests per minute per authenticated user
 
@@ -369,7 +370,7 @@ Authorization: Bearer <FIREBASE_ID_TOKEN>
 
 ---
 
-## 🗄️ Data Schema
+## Data Schema
 
 ### PoliceAlert Model
 
@@ -410,7 +411,8 @@ Archived alerts are stored as **JSONL** (JSON Lines) files in Cloud Storage:
 
 ---
 
-## �📁 Project Structure
+## Project Structure
+
 ```
 .
 ├── cmd/                  # Main applications for the microservices
@@ -430,7 +432,7 @@ Archived alerts are stored as **JSONL** (JSON Lines) files in Cloud Storage:
 
 ---
 
-## 📬 Contact
+## Contact
 
 For questions, issues, or collaboration:
 
@@ -440,7 +442,7 @@ For questions, issues, or collaboration:
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 *   **Waze**: For providing the live traffic data API that makes this project possible
 *   **Google Cloud Platform**: For the robust serverless infrastructure
@@ -450,13 +452,13 @@ For questions, issues, or collaboration:
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ---
 
-## 🚢 Deployment
+## Deployment
 
 ### Automated Deployment (Recommended)
 

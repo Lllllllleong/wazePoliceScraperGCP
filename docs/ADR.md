@@ -6,8 +6,6 @@ This document records the key architectural decisions made during the developmen
 
 ## ADR-001: Implement a Backend-for-Frontend (BFF) API
 
-
-
 **Status**: Implemented
 
 ### Context
@@ -32,8 +30,6 @@ We implemented a dedicated backend-for-frontend (BFF) service, the **`alerts-ser
 ---
 
 ## ADR-002: Standardize on Explicit UTC for All Time Operations
-
-
 
 **Status**: Implemented
 
@@ -61,8 +57,6 @@ We enforced a strict, explicit UTC-first policy across the entire application st
 ---
 
 ## ADR-003: Implement an On-Demand, Multi-Date Loading Strategy
-
-
 
 **Status**: Implemented
 
@@ -92,8 +86,6 @@ We refactored the data loading mechanism to be on-demand and user-driven:
 
 ## ADR-004: Adopt a High-Fidelity Timeline Visualization
 
-
-
 **Status**: Implemented
 
 ### Context
@@ -117,8 +109,6 @@ We replaced the initial implementation with Leaflet.js combined with the `Leafle
 ---
 
 ## ADR-005: Evolve to a Unified, Tag-Based Filtering System
-
-
 
 **Status**: Implemented
 
@@ -292,3 +282,174 @@ We implemented a strict **Service Identity Segmentation** strategy. We replaced 
 
 *   **Negative**:
     *   **Complexity**: Managing multiple service accounts and their specific IAM bindings is more complex than using a single default account.
+
+---
+
+## ADR-012: Adopt Interface-Based Dependency Injection for Testability
+
+**Status**: Implemented (January 2026)
+
+### Context
+
+The initial implementation of backend services created dependencies (Firestore clients, Waze API clients, GCS clients) directly inside handler functions. While this approach was simple and worked for production, it created significant testing challenges:
+
+*   **Untestable Handlers**: Handler tests could only verify that functions were created, not their actual behavior.
+*   **External Service Dependencies**: Running tests required real Firestore, GCS, and Waze API access, making tests slow, brittle, and expensive.
+*   **Low Coverage**: Test coverage was limited to ~25% overall because most business logic was untestable.
+*   **No Error Path Testing**: Impossible to simulate error conditions (API failures, database errors) without breaking production services.
+
+The project had good architectural foundations (separate packages for `storage`, `waze`, `models`) but lacked the final abstraction layer needed for comprehensive testing.
+
+### Decision
+
+We implemented **interface-based dependency injection** across all backend services:
+
+1.  **Define Clear Interfaces**: Created `AlertStore`, `AlertFetcher`, `GCSClient`, and `FirebaseAuthClient` interfaces in respective packages that define all operations needed by handlers.
+
+2.  **Refactor for Injection**: Modified all handlers to accept interface parameters instead of creating concrete clients internally:
+    ```go
+    // Before: Creates clients inside
+    func makeHandler(config Config) http.HandlerFunc {
+        client := waze.NewClient()  // Hard dependency
+        // ...
+    }
+    
+    // After: Accepts injected interfaces
+    func makeHandler(fetcher waze.AlertFetcher, store storage.AlertStore) http.HandlerFunc {
+        // Uses injected dependencies
+    }
+    ```
+
+3.  **Production vs Test Wiring**: In `main()`, inject real implementations. In tests, inject mocks:
+    ```go
+    // main.go - Production
+    wazeClient := waze.NewClient()
+    firestoreClient := storage.NewFirestoreClient(...)
+    handler := makeHandler(wazeClient, firestoreClient)
+    
+    // handler_test.go - Testing
+    mockFetcher := &waze.MockAlertFetcher{...}
+    mockStore := &storage.MockAlertStore{...}
+    handler := makeHandler(mockFetcher, mockStore)
+    ```
+
+4.  **Build Mock Implementations**: Created comprehensive mocks with configurable behavior:
+    - `MockAlertStore` with call logging and customizable function responses
+    - `MockAlertFetcher` that can simulate success, failures, and edge cases
+    - `MockGCSClient` for archive operations testing
+
+5.  **Server Struct Pattern**: For `alerts-service` and `archive-service`, encapsulated all dependencies in a `server` struct that implements `http.Handler`.
+
+### Consequences
+
+*   **Positive**:
+    *   **Testability Breakthrough**: Coverage increased from ~25% to ~60% overall (alerts-service: 72%, archive-service: 67%, scraper-service: 47%).
+    *   **Comprehensive Testing**: Can now test all code paths including error scenarios, edge cases, and concurrent operations.
+    *   **Fast Tests**: Unit tests run in milliseconds without external service calls.
+    *   **Maintainability**: Clear separation between interface contracts and implementations makes refactoring safer.
+    *   **Documentation**: Interfaces serve as clear API contracts showing exactly what each component needs.
+    *   **Portfolio Value**: Demonstrates understanding of SOLID principles, particularly Dependency Inversion.
+
+*   **Negative**:
+    *   **Initial Complexity**: Required refactoring all handlers and creating mock implementations (~500 lines of mock code).
+    *   **Boilerplate**: Each service now needs interface definitions, production implementations, and mock implementations.
+    *   **Cognitive Load**: Developers must understand both the interface and implementation layers.
+
+---
+
+## ADR-013: Integrate Firestore Emulator Testing in CI/CD Pipeline
+
+**Status**: Implemented (January 2026)
+
+### Context
+
+While unit tests with mocked dependencies provided good coverage of business logic, they couldn't verify:
+
+*   **Database Query Correctness**: Did our Firestore queries actually return the right data?
+*   **Data Transformation**: Were we correctly converting between `WazeAlert` and `PoliceAlert` models?
+*   **Query Performance**: Would queries scale with realistic data volumes?
+*   **Concurrent Operations**: How did Firestore handle simultaneous writes?
+*   **Edge Cases**: Unicode strings, large batches, date range boundaries?
+
+The `storage` package had only 8.4% unit test coverage because most functions directly interact with Firestore—mocking would test the mock, not the real database behavior. Integration tests existed locally but were:
+
+*   **Not Running in CI**: Developers had to remember to run them manually with `go test -tags=integration`
+*   **Easy to Skip**: No enforcement meant integration tests were often forgotten
+*   **No Deployment Gate**: Broken database interactions could reach production
+
+This created a critical gap: while handlers were well-tested with mocks, we had no automated verification that those mocks actually behaved like real Firestore.
+
+### Decision
+
+We implemented **automated integration testing with Firestore emulator in the CI/CD pipeline**:
+
+1.  **Build Tag Separation**: Use Go build tags to separate integration tests from unit tests:
+    ```go
+    //go:build integration
+    
+    package storage
+    
+    func TestIntegration_SavePoliceAlerts(t *testing.T) {
+        // Tests against real emulator
+    }
+    ```
+
+2.  **Emulator Setup in CI**: Added Firestore emulator to all GitHub Actions workflows:
+    ```yaml
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        install_components: 'cloud-firestore-emulator'
+    
+    - name: Start Firestore Emulator
+      run: gcloud emulators firestore start --host-port=localhost:8080 &
+    
+    - name: Run Integration Tests
+      env:
+        FIRESTORE_EMULATOR_HOST: localhost:8080
+      run: go test -tags=integration -v ./internal/storage/...
+    ```
+
+3.  **Separate CI Job**: Created dedicated `integration-test` jobs that:
+    - Run after unit tests pass
+    - Start the Firestore emulator
+    - Execute integration tests with the `-tags=integration` flag
+    - Upload separate coverage reports to Codecov
+    - Block deployment if integration tests fail
+
+4.  **Comprehensive Test Suite**: Built integration tests covering:
+    - CRUD operations (create, read, update, delete)
+    - Complex queries (date ranges, multi-date with filters)
+    - Concurrent operations (race conditions, simultaneous writes)
+    - Large batch operations (500+ alerts)
+    - Edge cases (Unicode street names, duplicate UUIDs)
+    - Performance benchmarks (10,000 alert queries under 5s)
+
+5.  **Local Development Support**: Updated documentation to guide developers on running integration tests locally:
+    ```bash
+    gcloud emulators firestore start --host-port=localhost:8080
+    export FIRESTORE_EMULATOR_HOST=localhost:8080
+    go test -tags=integration -v ./internal/storage/...
+    ```
+
+### Consequences
+
+*   **Positive**:
+    *   **Real Database Verification**: Automated testing against actual Firestore behavior catches query bugs before deployment.
+    *   **Higher Confidence**: The 40% integration coverage complements unit tests, bringing total storage package coverage to ~48%.
+    *   **Caught Real Bugs**: Integration tests revealed issues with concurrent updates and Unicode handling that mocks missed.
+    *   **No Production Dependencies**: Emulator tests run in isolation without GCP credentials or costs.
+    *   **Deployment Safety**: Both unit AND integration tests must pass before any service deploys.
+    *   **Documentation Value**: Integration tests serve as executable documentation of Firestore usage patterns.
+    *   **Fast Feedback**: Emulator starts in ~10 seconds; full integration suite runs in ~30 seconds.
+
+*   **Negative**:
+    *   **CI Time Increase**: Each service workflow now runs 20-40 seconds longer for emulator setup and integration tests.
+    *   **Maintenance Overhead**: Integration tests require more maintenance than unit tests as they're sensitive to Firestore behavior changes.
+    *   **Local Setup**: Developers must install and configure the Firestore emulator for local integration testing.
+    *   **Test Data Management**: Integration tests require careful test data setup/teardown to avoid pollution.
+
+---
+
+**Last Updated**: January 10, 2026  
+**Document Maintainer**: Project Team
