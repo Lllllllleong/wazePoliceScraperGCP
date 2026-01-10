@@ -1,10 +1,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
+
+	"github.com/Lllllllleong/wazePoliceScraperGCP/internal/models"
+	"github.com/Lllllllleong/wazePoliceScraperGCP/internal/storage"
+	"github.com/Lllllllleong/wazePoliceScraperGCP/internal/waze"
 )
 
 // TestHealthHandler tests the health check endpoint
@@ -52,14 +59,293 @@ func TestHealthHandlerMethods(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// NEW: Comprehensive Handler Tests with Dependency Injection
+// =============================================================================
+
+func TestMakeScraperHandler_Success(t *testing.T) {
+	// Setup mocks
+	mockFetcher := &waze.MockAlertFetcher{
+		GetAlertsMultipleBBoxesFunc: func(bboxes []string) ([]models.WazeAlert, error) {
+			return []models.WazeAlert{
+				{
+					UUID:      "test-uuid-1",
+					Type:      "POLICE",
+					Subtype:   "POLICE_VISIBLE",
+					PubMillis: time.Now().UnixMilli(),
+					Location:  models.Location{Latitude: -33.8, Longitude: 151.2},
+					Street:    "Test Street",
+				},
+				{
+					UUID:      "test-uuid-2",
+					Type:      "ACCIDENT",
+					Subtype:   "ACCIDENT_MINOR",
+					PubMillis: time.Now().UnixMilli(),
+					Location:  models.Location{Latitude: -33.9, Longitude: 151.3},
+				},
+			}, nil
+		},
+		GetStatsFunc: func() *models.ScrapingStats {
+			return &models.ScrapingStats{
+				TotalRequests:   2,
+				SuccessfulCalls: 2,
+				TotalAlerts:     2,
+				UniqueAlerts:    2,
+			}
+		},
+	}
+
+	mockStore := &storage.MockAlertStore{
+		SavePoliceAlertsFunc: func(ctx context.Context, alerts []models.WazeAlert, scrapeTime time.Time) error {
+			return nil
+		},
+	}
+
+	bboxes := []string{"150.0,-34.0,151.0,-33.0"}
+	handler := makeScraperHandler(mockFetcher, mockStore, bboxes)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	// Verify response
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	var response map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if response["status"] != "success" {
+		t.Errorf("Expected status 'success', got %v", response["status"])
+	}
+
+	if alertsFound := response["alerts_found"].(float64); alertsFound != 2 {
+		t.Errorf("Expected 2 alerts found, got %v", alertsFound)
+	}
+
+	if policeAlertsSaved := response["police_alerts_saved"].(float64); policeAlertsSaved != 1 {
+		t.Errorf("Expected 1 police alert saved, got %v", policeAlertsSaved)
+	}
+
+	// Verify mock was called
+	if mockStore.CallLog.SavePoliceAlertsCalls != 1 {
+		t.Errorf("Expected SavePoliceAlerts to be called once, got %d", mockStore.CallLog.SavePoliceAlertsCalls)
+	}
+
+	if mockStore.CallLog.LastSaveAlertsCount != 2 {
+		t.Errorf("Expected 2 alerts passed to SavePoliceAlerts, got %d", mockStore.CallLog.LastSaveAlertsCount)
+	}
+}
+
+func TestMakeScraperHandler_FetchError(t *testing.T) {
+	mockFetcher := &waze.MockAlertFetcher{
+		GetAlertsMultipleBBoxesFunc: func(bboxes []string) ([]models.WazeAlert, error) {
+			return nil, errors.New("waze API connection failed")
+		},
+	}
+
+	mockStore := &storage.MockAlertStore{}
+	bboxes := []string{"150.0,-34.0,151.0,-33.0"}
+	handler := makeScraperHandler(mockFetcher, mockStore, bboxes)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	// Verify error response
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status 500, got %d", w.Code)
+	}
+
+	bodyStr := w.Body.String()
+	if bodyStr == "" {
+		t.Error("Expected error message in response body")
+	}
+
+	// Verify store was NOT called
+	if mockStore.CallLog.SavePoliceAlertsCalls != 0 {
+		t.Errorf("Expected SavePoliceAlerts not to be called, but it was called %d times", mockStore.CallLog.SavePoliceAlertsCalls)
+	}
+}
+
+func TestMakeScraperHandler_SaveError(t *testing.T) {
+	mockFetcher := &waze.MockAlertFetcher{
+		GetAlertsMultipleBBoxesFunc: func(bboxes []string) ([]models.WazeAlert, error) {
+			return []models.WazeAlert{
+				{UUID: "test-uuid-1", Type: "POLICE"},
+			}, nil
+		},
+		GetStatsFunc: func() *models.ScrapingStats {
+			return &models.ScrapingStats{}
+		},
+	}
+
+	mockStore := &storage.MockAlertStore{
+		SavePoliceAlertsFunc: func(ctx context.Context, alerts []models.WazeAlert, scrapeTime time.Time) error {
+			return errors.New("firestore connection timeout")
+		},
+	}
+
+	bboxes := []string{"150.0,-34.0,151.0,-33.0"}
+	handler := makeScraperHandler(mockFetcher, mockStore, bboxes)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	// Verify error response
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status 500, got %d", w.Code)
+	}
+
+	// Verify store was called
+	if mockStore.CallLog.SavePoliceAlertsCalls != 1 {
+		t.Errorf("Expected SavePoliceAlerts to be called once, got %d", mockStore.CallLog.SavePoliceAlertsCalls)
+	}
+}
+
+func TestMakeScraperHandler_EmptyAlerts(t *testing.T) {
+	mockFetcher := &waze.MockAlertFetcher{
+		GetAlertsMultipleBBoxesFunc: func(bboxes []string) ([]models.WazeAlert, error) {
+			return []models.WazeAlert{}, nil
+		},
+		GetStatsFunc: func() *models.ScrapingStats {
+			return &models.ScrapingStats{
+				TotalRequests:   1,
+				SuccessfulCalls: 1,
+				TotalAlerts:     0,
+				UniqueAlerts:    0,
+			}
+		},
+	}
+
+	mockStore := &storage.MockAlertStore{
+		SavePoliceAlertsFunc: func(ctx context.Context, alerts []models.WazeAlert, scrapeTime time.Time) error {
+			return nil
+		},
+	}
+
+	bboxes := []string{"150.0,-34.0,151.0,-33.0"}
+	handler := makeScraperHandler(mockFetcher, mockStore, bboxes)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	// Verify success response with zero alerts
+	if w.Code != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", w.Code)
+	}
+
+	var response map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&response); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	if alertsFound := response["alerts_found"].(float64); alertsFound != 0 {
+		t.Errorf("Expected 0 alerts found, got %v", alertsFound)
+	}
+
+	if policeAlertsSaved := response["police_alerts_saved"].(float64); policeAlertsSaved != 0 {
+		t.Errorf("Expected 0 police alerts saved, got %v", policeAlertsSaved)
+	}
+
+	// Verify store was still called (even with empty alerts)
+	if mockStore.CallLog.SavePoliceAlertsCalls != 1 {
+		t.Errorf("Expected SavePoliceAlerts to be called once, got %d", mockStore.CallLog.SavePoliceAlertsCalls)
+	}
+}
+
+func TestMakeScraperHandler_OnlyPoliceAlerts(t *testing.T) {
+	mockFetcher := &waze.MockAlertFetcher{
+		GetAlertsMultipleBBoxesFunc: func(bboxes []string) ([]models.WazeAlert, error) {
+			return []models.WazeAlert{
+				{UUID: "police-1", Type: "POLICE", Subtype: "POLICE_VISIBLE"},
+				{UUID: "police-2", Type: "POLICE", Subtype: "POLICE_HIDING"},
+				{UUID: "police-3", Type: "POLICE", Subtype: "POLICE_GENERAL"},
+			}, nil
+		},
+		GetStatsFunc: func() *models.ScrapingStats {
+			return &models.ScrapingStats{UniqueAlerts: 3}
+		},
+	}
+
+	mockStore := &storage.MockAlertStore{}
+	bboxes := []string{"150.0,-34.0,151.0,-33.0"}
+	handler := makeScraperHandler(mockFetcher, mockStore, bboxes)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	var response map[string]interface{}
+	json.NewDecoder(w.Body).Decode(&response)
+
+	// All alerts are POLICE type
+	if alertsFound := response["alerts_found"].(float64); alertsFound != 3 {
+		t.Errorf("Expected 3 alerts found, got %v", alertsFound)
+	}
+
+	if policeAlertsSaved := response["police_alerts_saved"].(float64); policeAlertsSaved != 3 {
+		t.Errorf("Expected 3 police alerts saved, got %v", policeAlertsSaved)
+	}
+}
+
+func TestMakeScraperHandler_MultipleBBoxes(t *testing.T) {
+	mockFetcher := &waze.MockAlertFetcher{
+		GetAlertsMultipleBBoxesFunc: func(bboxes []string) ([]models.WazeAlert, error) {
+			// Verify multiple bboxes were passed
+			if len(bboxes) != 3 {
+				t.Errorf("Expected 3 bboxes, got %d", len(bboxes))
+			}
+			return []models.WazeAlert{
+				{UUID: "alert-1", Type: "POLICE"},
+			}, nil
+		},
+		GetStatsFunc: func() *models.ScrapingStats {
+			return &models.ScrapingStats{}
+		},
+	}
+
+	mockStore := &storage.MockAlertStore{}
+	bboxes := []string{"bbox1", "bbox2", "bbox3"}
+	handler := makeScraperHandler(mockFetcher, mockStore, bboxes)
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+
+	handler(w, req)
+
+	var response map[string]interface{}
+	json.NewDecoder(w.Body).Decode(&response)
+
+	if bboxesUsed := response["bboxes_used"].(float64); bboxesUsed != 3 {
+		t.Errorf("Expected 3 bboxes used, got %v", bboxesUsed)
+	}
+}
+
+// =============================================================================
+// EXISTING: Structure and Unit Tests (kept for completeness)
+// =============================================================================
+
 // TestScraperHandlerCreation tests that makeScraperHandler returns a valid handler
 func TestScraperHandlerCreation(t *testing.T) {
+	mockFetcher := &waze.MockAlertFetcher{}
+	mockStore := &storage.MockAlertStore{}
 	bboxes := []string{
 		"150.38,-34.25,151.00,-33.93",
 		"149.58,-34.76,150.83,-34.13",
 	}
 
-	handler := makeScraperHandler(bboxes)
+	handler := makeScraperHandler(mockFetcher, mockStore, bboxes)
 	if handler == nil {
 		t.Fatal("expected non-nil handler")
 	}
@@ -67,7 +353,9 @@ func TestScraperHandlerCreation(t *testing.T) {
 
 // TestScraperHandlerWithEmptyBBoxes tests handler behavior with empty bboxes
 func TestScraperHandlerWithEmptyBBoxes(t *testing.T) {
-	handler := makeScraperHandler([]string{})
+	mockFetcher := &waze.MockAlertFetcher{}
+	mockStore := &storage.MockAlertStore{}
+	handler := makeScraperHandler(mockFetcher, mockStore, []string{})
 	if handler == nil {
 		t.Fatal("expected non-nil handler even with empty bboxes")
 	}

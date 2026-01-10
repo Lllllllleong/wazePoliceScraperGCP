@@ -67,22 +67,30 @@ func main() {
 	log.Printf("Collection: %s", collectionName)
 	log.Printf("Bounding boxes: %v", bboxes)
 
-	// Setup HTTP handlers
-	http.HandleFunc("/", makeScraperHandler(bboxes))
+	// Initialize dependencies
+	ctx := context.Background()
+	wazeClient := waze.NewClient()
+	firestoreClient, err := storage.NewFirestoreClient(ctx, projectID, collectionName)
+	if err != nil {
+		log.Fatalf("Failed to create Firestore client: %v", err)
+	}
+	defer firestoreClient.Close()
+
+	// Setup HTTP handlers with dependency injection
+	http.HandleFunc("/", makeScraperHandler(wazeClient, firestoreClient, bboxes))
 	http.HandleFunc("/health", healthHandler)
 
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
-func makeScraperHandler(bboxes []string) http.HandlerFunc {
+func makeScraperHandler(fetcher waze.AlertFetcher, store storage.AlertStore, bboxes []string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Received scrape request from %s", r.RemoteAddr)
 
 		ctx := context.Background()
 
-		// Step 1: Create Waze client and fetch alerts
-		wazeClient := waze.NewClient()
-		alerts, err := wazeClient.GetAlertsMultipleBBoxes(bboxes)
+		// Step 1: Fetch alerts using injected fetcher
+		alerts, err := fetcher.GetAlertsMultipleBBoxes(bboxes)
 		if err != nil {
 			log.Printf("Error fetching alerts: %v", err)
 			http.Error(w, fmt.Sprintf("Failed to fetch alerts: %v", err), http.StatusInternalServerError)
@@ -91,17 +99,9 @@ func makeScraperHandler(bboxes []string) http.HandlerFunc {
 
 		log.Printf("Fetched %d unique alerts from Waze", len(alerts))
 
-		// Step 2: Save police alerts to Firestore
-		firestoreClient, err := storage.NewFirestoreClient(ctx, projectID, collectionName)
-		if err != nil {
-			log.Printf("Error creating Firestore client: %v", err)
-			http.Error(w, fmt.Sprintf("Failed to connect to Firestore: %v", err), http.StatusInternalServerError)
-			return
-		}
-		defer firestoreClient.Close()
-
+		// Step 2: Save police alerts using injected store
 		scrapeTime := time.Now()
-		err = firestoreClient.SavePoliceAlerts(ctx, alerts, scrapeTime)
+		err = store.SavePoliceAlerts(ctx, alerts, scrapeTime)
 		if err != nil {
 			log.Printf("Error saving police alerts to Firestore: %v", err)
 			http.Error(w, fmt.Sprintf("Failed to save alerts: %v", err), http.StatusInternalServerError)
@@ -117,7 +117,7 @@ func makeScraperHandler(bboxes []string) http.HandlerFunc {
 		}
 
 		// Step 3: Return success response
-		stats := wazeClient.GetStats()
+		stats := fetcher.GetStats()
 		response := map[string]interface{}{
 			"status":              "success",
 			"alerts_found":        len(alerts),
