@@ -28,13 +28,13 @@ type MockAlertStore struct {
 
 	// CallLog tracks calls made to the mock for verification.
 	CallLog struct {
-		SavePoliceAlertsCalls                     int
-		GetPoliceAlertsByDateRangeCalls           int
-		GetPoliceAlertsByDatesWithFiltersCalls    int
-		CloseCalls                                int
-		LastSaveAlertsCount                       int
-		LastGetDateRangeArgs                      []time.Time
-		LastGetDatesWithFiltersArgs               []string
+		SavePoliceAlertsCalls                  int
+		GetPoliceAlertsByDateRangeCalls        int
+		GetPoliceAlertsByDatesWithFiltersCalls int
+		CloseCalls                             int
+		LastSaveAlertsCount                    int
+		LastGetDateRangeArgs                   []time.Time
+		LastGetDatesWithFiltersArgs            []string
 	}
 }
 

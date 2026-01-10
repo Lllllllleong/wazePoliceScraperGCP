@@ -180,12 +180,12 @@ func TestFirestoreClient_GetCollectionName(t *testing.T) {
 // by testing the data transformations independently
 func TestWazeAlertToPoliceAlertConversion(t *testing.T) {
 	tests := []struct {
-		name           string
-		wazeAlert      models.WazeAlert
-		expectedType   string
+		name            string
+		wazeAlert       models.WazeAlert
+		expectedType    string
 		expectedSubtype string
-		expectedLat    float64
-		expectedLng    float64
+		expectedLat     float64
+		expectedLng     float64
 	}{
 		{
 			name: "standard police alert conversion",
@@ -311,11 +311,11 @@ func TestPoliceAlertFiltering(t *testing.T) {
 	}
 
 	tests := []struct {
-		name           string
-		subtypes       []string
-		streets        []string
-		expectedCount  int
-		expectedUUIDs  []string
+		name          string
+		subtypes      []string
+		streets       []string
+		expectedCount int
+		expectedUUIDs []string
 	}{
 		{
 			name:          "no filters returns all",
@@ -434,9 +434,9 @@ func TestActiveMillisCalculation(t *testing.T) {
 		},
 		{
 			name:             "24 hours active",
-			pubMillis:        1704067200000,                 // 2024-01-01 00:00:00 UTC
-			scrapeTimeMillis: 1704067200000 + 24*3600*1000,  // Next day
-			expectedActive:   86400000,                      // 24 hours in milliseconds
+			pubMillis:        1704067200000,                // 2024-01-01 00:00:00 UTC
+			scrapeTimeMillis: 1704067200000 + 24*3600*1000, // Next day
+			expectedActive:   86400000,                     // 24 hours in milliseconds
 		},
 	}
 
@@ -479,4 +479,3 @@ func TestPoliceAlertTypeFiltering(t *testing.T) {
 		}
 	}
 }
-

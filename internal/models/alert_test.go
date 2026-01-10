@@ -141,4 +141,3 @@ func TestScrapingStats(t *testing.T) {
 		t.Errorf("Expected UniqueAlerts 75, got %d", stats.UniqueAlerts)
 	}
 }
-

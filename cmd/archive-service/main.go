@@ -33,10 +33,10 @@ import (
 )
 
 type server struct {
-	alertStore    storage.AlertStore
-	gcsClient     storage.GCSClient
-	bucketName    string
-	loadLocation  func(name string) (*time.Location, error)
+	alertStore   storage.AlertStore
+	gcsClient    storage.GCSClient
+	bucketName   string
+	loadLocation func(name string) (*time.Location, error)
 }
 
 func main() {
@@ -74,10 +74,10 @@ func main() {
 	defer storageClient.Close()
 
 	s := &server{
-		alertStore:    firestoreClient,
-		gcsClient:     &storage.GCSClientAdapter{Client: storageClient},
-		bucketName:    bucketName,
-		loadLocation:  time.LoadLocation,
+		alertStore:   firestoreClient,
+		gcsClient:    &storage.GCSClientAdapter{Client: storageClient},
+		bucketName:   bucketName,
+		loadLocation: time.LoadLocation,
 	}
 
 	log.Printf("Starting Archive Service on port %s", port)

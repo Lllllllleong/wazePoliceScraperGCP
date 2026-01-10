@@ -389,7 +389,7 @@ func TestLargeDatasetJSONL(t *testing.T) {
 	alerts := make([]models.PoliceAlert, 100)
 	for i := 0; i < 100; i++ {
 		alerts[i] = models.PoliceAlert{
-			UUID:    string(rune('a' + i%26)) + "-" + string(rune('0'+i%10)),
+			UUID:    string(rune('a'+i%26)) + "-" + string(rune('0'+i%10)),
 			Type:    "POLICE",
 			Subtype: "POLICE_VISIBLE",
 			Street:  "Test Street",
@@ -452,9 +452,9 @@ func TestIdempotencyLogic(t *testing.T) {
 	}
 
 	tests := []struct {
-		name         string
-		targetDate   string
-		shouldSkip   bool
+		name       string
+		targetDate string
+		shouldSkip bool
 	}{
 		{"archive exists", "2024-01-01", true},
 		{"archive exists 2", "2024-01-02", true},
@@ -1061,4 +1061,3 @@ func TestArchiveHandlerVerifiesJSONLContent(t *testing.T) {
 		t.Errorf("expected City 'Canberra', got %q", parsed.City)
 	}
 }
-

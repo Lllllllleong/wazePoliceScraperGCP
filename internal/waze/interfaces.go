@@ -19,5 +19,3 @@ type AlertFetcher interface {
 
 // Ensure Client implements AlertFetcher interface.
 var _ AlertFetcher = (*Client)(nil)
-
-

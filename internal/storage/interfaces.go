@@ -30,5 +30,3 @@ type AlertStore interface {
 
 // Ensure FirestoreClient implements AlertStore interface.
 var _ AlertStore = (*FirestoreClient)(nil)
-
-
