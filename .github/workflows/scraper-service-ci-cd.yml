@@ -17,12 +17,6 @@ on:
     branches:
       - master
       - main
-    paths:
-      - 'cmd/scraper-service/**'
-      - 'internal/**'
-      - 'go.mod'
-      - 'go.sum'
-      - '.github/workflows/scraper-service-ci-cd.yml'
 
 env:
   GCP_PROJECT_ID: "wazepolicescrapergcp"
