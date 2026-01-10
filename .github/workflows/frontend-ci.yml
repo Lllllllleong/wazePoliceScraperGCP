@@ -1,0 +1,85 @@
+name: Frontend CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+      - main
+    paths:
+      - 'dataAnalysis/**'
+      - '.github/workflows/frontend-ci.yml'
+  pull_request:
+    branches:
+      - master
+      - main
+    paths:
+      - 'dataAnalysis/**'
+      - '.github/workflows/frontend-ci.yml'
+
+defaults:
+  run:
+    working-directory: dataAnalysis
+
+jobs:
+  test:
+    name: Test Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: dataAnalysis/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Tests with Coverage
+        run: npm run test:coverage
+
+      - name: Upload Coverage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: dataAnalysis/coverage/
+          retention-days: 30
+
+  lint:
+    name: Lint Frontend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check JavaScript syntax
+        run: |
+          # Basic syntax check for JavaScript files
+          for file in public/*.js; do
+            echo "Checking $file..."
+            node --check "$file" || exit 1
+          done
+          echo "All JavaScript files have valid syntax"
+
+      - name: Check for common issues
+        run: |
+          # Check for console.log statements (warning only)
+          echo "Checking for console.log statements..."
+          grep -r "console\.log" public/*.js && echo "Warning: console.log found" || echo "No console.log found"
+          
+          # Check for TODO comments
+          echo "Checking for TODO comments..."
+          grep -ri "TODO" public/*.js && echo "Info: TODO comments found" || echo "No TODOs found"
+
+
