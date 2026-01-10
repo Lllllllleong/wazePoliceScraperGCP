@@ -21,56 +21,51 @@ The primary components are:
 
 The following diagram illustrates the flow of data and the interaction between the system's components.
 
+> **Note**: This Mermaid diagram requires the "Markdown Preview Mermaid Support" VS Code extension to render in preview. Alternatively, view on GitHub where Mermaid is natively supported.
+
 ```mermaid
-graph TD
-    subgraph External_Services [External Services]
-        Waze[Waze Live Data]
-        Scheduler[Cloud Scheduler]
-    end
+flowchart TB
+    %% Class Definitions for Styling
+    classDef external fill:#f9f9f9,stroke:#666,stroke-width:2px,stroke-dasharray: 5 5;
+    classDef compute fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#01579b;
+    classDef storage fill:#fff8e1,stroke:#ff8f00,stroke-width:2px,color:#8d6e63;
+    classDef ui fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20;
+    classDef trigger fill:#ede7f6,stroke:#512da8,stroke-width:2px,color:#311b92;
 
-    subgraph GCP_Backend [GCP Backend]
-        subgraph Scraper_SRV [scraper-service: Cloud Run]
-            Scraper(Go App)
-        end
+    %% External Triggers
+    Waze([Waze Live Data API]):::external
+    SchedulerScraper[[Cloud Scheduler<br/>Every Minute]]:::trigger
+    SchedulerArchive[[Cloud Scheduler<br/>Daily 00:05 UTC]]:::trigger
 
-        subgraph Alerts_SRV [alerts-service: Cloud Run]
-            AlertsAPI(Go API)
-        end
+    %% Cloud Run Services
+    Scraper(Scraper Service<br/>Go on Cloud Run):::compute
+    Archive(Archive Service<br/>Go on Cloud Run):::compute
+    AlertsAPI(Alerts API Service<br/>Go on Cloud Run):::compute
 
-        subgraph Archive_SRV [archive-service: Cloud Run]
-            Archive(Go App)
-        end
+    %% Storage Layer
+    Firestore[(Firestore<br/>NoSQL Database)]:::storage
+    GCS[(Cloud Storage<br/>JSONL Archives)]:::storage
 
-        subgraph Data_Storage [Data Storage]
-            Firestore[(Firestore Database)]
-            GCS[(Cloud Storage Bucket)]
-        end
-    end
+    %% Frontend
+    Dashboard[Data Analysis Dashboard<br/>JavaScript + Leaflet]:::ui
 
-    subgraph UI [User Interface]
-        Dashboard[Data Analysis Dashboard]
-    end
+    %% Data Flow: Scraper Pipeline
+    SchedulerScraper -->|Trigger| Scraper
+    Waze -->|Police Alerts JSON| Scraper
+    Scraper -->|Write PoliceAlert| Firestore
 
-    %% Data Flow
-    Scheduler -->|Triggers every X min| Scraper
-    Scraper -->|Fetches alerts| Waze
-    Scraper -->|Writes alerts| Firestore
+    %% Data Flow: Archive Pipeline
+    SchedulerArchive -->|Trigger| Archive
+    Firestore -->|Read Yesterday's Data| Archive
+    Archive -->|Write JSONL.gz| GCS
 
-    Scheduler -->|Triggers daily| Archive
-    Archive -->|Reads old alerts| Firestore
-    Archive -->|Writes archives| GCS
-
-    Dashboard -->|User selects dates| AlertsAPI
-    AlertsAPI -->|Reads fresh alerts| Firestore
-    AlertsAPI -->|Reads archived alerts| GCS
-    AlertsAPI -->|Returns data| Dashboard
-
-    %% Styling
-    style Scraper fill:#d4edff,stroke:#333,stroke-width:2px
-    style AlertsAPI fill:#d4edff,stroke:#333,stroke-width:2px
-    style Archive fill:#d4edff,stroke:#333,stroke-width:2px
-    style Dashboard fill:#d1fae5,stroke:#333,stroke-width:2px
+    %% Data Flow: Frontend Access
+    Dashboard -->|GET /police_alerts<br/>+ Firebase Auth Token| AlertsAPI
+    Firestore -.->|Recent Data| AlertsAPI
+    GCS -.->|Archived Data| AlertsAPI
+    AlertsAPI -.->|Stream JSONL Response| Dashboard
 ```
+
 
 ---
 
@@ -78,7 +73,8 @@ graph TD
 
 ### 3.1. Scraper Service (`scraper-service`)
 *   **Technology**: Go, deployed on Cloud Run.
-*   **Trigger**: Invoked by Google Cloud Scheduler on a fixed schedule (e.g., every 5 minutes).
+*   **Trigger**: Invoked by Google Cloud Scheduler every minute (`* * * * *`).
+*   **Configuration**: Geographic bounding boxes defined in `configs/bboxes.yaml` (can be overridden via `WAZE_BBOXES` environment variable).
 *   **Responsibilities**:
     1.  Receives a trigger to begin a scrape cycle.
     2.  Makes HTTP requests to the Waze live data endpoints for predefined geographic bounding boxes.
@@ -101,7 +97,8 @@ graph TD
 
 ### 3.3. Archive Service (`archive-service`)
 *   **Technology**: Go, deployed on Cloud Run.
-*   **Trigger**: Invoked by Google Cloud Scheduler on a daily schedule.
+*   **Trigger**: Invoked by Google Cloud Scheduler daily at 00:05 UTC (`5 0 * * *`).
+*   **Timezone**: Uses Australia/Canberra timezone for determining day boundaries.
 *   **Responsibilities**:
     1.  Receives a trigger to archive a specific day's data (e.g., yesterday).
     2.  Queries Firestore for all alerts published within that day's 24-hour UTC window.
@@ -117,7 +114,11 @@ graph TD
     3.  Constructs and sends authenticated API requests to the `alerts-service` with Bearer tokens.
     4.  Parses the streamed JSONL response and loads the data into memory.
     5.  Performs client-side filtering, sorting, and statistical calculations.
-    6.  Renders the filtered alerts on an interactive map (Leaflet.js with Timeline plugin) and in a detailed list.
+    6.  Renders the filtered alerts on an interactive map (Leaflet.js with Timeline plugin for temporal visualization) and in a detailed list.
+
+### 3.5. Supporting Infrastructure
+*   **Artifact Registry**: Docker container images for all Cloud Run services are stored in Google Artifact Registry, enabling version control and efficient deployment workflows.
+*   **BigQuery Dataset**: Provisioned for potential future analytics and data warehouse capabilities, allowing for advanced querying and business intelligence on historical alert data.
 
 ---
 
