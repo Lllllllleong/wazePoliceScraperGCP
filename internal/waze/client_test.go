@@ -285,7 +285,7 @@ func TestGetAlertsWithMockServer(t *testing.T) {
 
 			// Create a client and override its HTTP call by creating a custom handler
 			client := NewClient()
-			
+
 			// Make a test request to our mock server instead
 			resp, err := client.httpClient.Get(server.URL)
 			if err != nil {
@@ -339,7 +339,7 @@ func TestDeduplicationLogic(t *testing.T) {
 
 	// Combine all alerts and deduplicate (simulating GetAlertsMultipleBBoxes logic)
 	uniqueAlerts := make(map[string]models.WazeAlert)
-	
+
 	allAlertGroups := [][]models.WazeAlert{alertsFromBBox1, alertsFromBBox2, alertsFromBBox3}
 	for _, alerts := range allAlertGroups {
 		for _, alert := range alerts {
@@ -370,9 +370,9 @@ func TestDeduplicationLogic(t *testing.T) {
 func TestEmptyUUIDHandling(t *testing.T) {
 	alerts := []models.WazeAlert{
 		{UUID: "valid-uuid-1", Type: "POLICE"},
-		{UUID: "", Type: "POLICE"},           // Empty UUID should be ignored
+		{UUID: "", Type: "POLICE"}, // Empty UUID should be ignored
 		{UUID: "valid-uuid-2", Type: "POLICE"},
-		{UUID: "", Type: "ACCIDENT"},         // Another empty UUID
+		{UUID: "", Type: "ACCIDENT"}, // Another empty UUID
 	}
 
 	uniqueAlerts := make(map[string]models.WazeAlert)
@@ -403,7 +403,7 @@ func TestEmptyUUIDHandling(t *testing.T) {
 // TestStatsTracking tests that statistics are correctly tracked
 func TestStatsTracking(t *testing.T) {
 	client := NewClient()
-	
+
 	// Initial stats should be zero
 	stats := client.GetStats()
 	if stats.TotalRequests != 0 || stats.SuccessfulCalls != 0 || stats.FailedCalls != 0 {

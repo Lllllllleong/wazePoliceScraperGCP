@@ -18,6 +18,24 @@ type GCSObjectHandle interface {
 	// NewReader creates a new Reader to read the object's contents.
 	// Returns an error if the object does not exist or cannot be read.
 	NewReader(ctx context.Context) (io.ReadCloser, error)
+
+	// Attrs returns the object's attributes.
+	// Returns ErrObjectNotExist if the object does not exist.
+	Attrs(ctx context.Context) (*GCSObjectAttrs, error)
+
+	// NewWriter creates a new Writer to write the object's contents.
+	NewWriter(ctx context.Context) GCSWriter
+}
+
+// GCSObjectAttrs represents attributes of a GCS object.
+type GCSObjectAttrs struct {
+	Name string
+	Size int64
+}
+
+// GCSWriter represents a writer for uploading data to GCS.
+type GCSWriter interface {
+	io.WriteCloser
 }
 
 // GCSClient represents a client for interacting with Google Cloud Storage.

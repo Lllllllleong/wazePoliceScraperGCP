@@ -131,7 +131,9 @@
                 <div class="time-controls">
                     <div class="input-group">
                         <label for="date-picker">Select Days (maximum 7 days):</label>
-                        <input type="text" id="date-picker" placeholder="Click to select dates..." readonly>
+                        <div id="date-picker-container">
+                            <input type="text" id="date-picker" class="visually-hidden">
+                        </div>
                     </div>
                     <div class="selected-dates-info">
                         <span id="selected-dates-count">No dates selected</span>

@@ -44,6 +44,23 @@ func (a *GCSObjectHandleAdapter) NewReader(ctx context.Context) (io.ReadCloser, 
 	return a.Handle.NewReader(ctx)
 }
 
+// Attrs implements GCSObjectHandle.Attrs.
+func (a *GCSObjectHandleAdapter) Attrs(ctx context.Context) (*GCSObjectAttrs, error) {
+	attrs, err := a.Handle.Attrs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &GCSObjectAttrs{
+		Name: attrs.Name,
+		Size: attrs.Size,
+	}, nil
+}
+
+// NewWriter implements GCSObjectHandle.NewWriter.
+func (a *GCSObjectHandleAdapter) NewWriter(ctx context.Context) GCSWriter {
+	return a.Handle.NewWriter(ctx)
+}
+
 // Ensure GCSObjectHandleAdapter implements GCSObjectHandle.
 var _ GCSObjectHandle = (*GCSObjectHandleAdapter)(nil)
 

@@ -19,7 +19,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -34,9 +33,10 @@ import (
 )
 
 type server struct {
-	firestoreClient *storage.FirestoreClient
-	storageClient   *gcs.Client
-	bucketName      string
+	alertStore   storage.AlertStore
+	gcsClient    storage.GCSClient
+	bucketName   string
+	loadLocation func(name string) (*time.Location, error)
 }
 
 func main() {
@@ -74,9 +74,10 @@ func main() {
 	defer storageClient.Close()
 
 	s := &server{
-		firestoreClient: firestoreClient,
-		storageClient:   storageClient,
-		bucketName:      bucketName,
+		alertStore:   firestoreClient,
+		gcsClient:    &storage.GCSClientAdapter{Client: storageClient},
+		bucketName:   bucketName,
+		loadLocation: time.LoadLocation,
 	}
 
 	log.Printf("Starting Archive Service on port %s", port)
@@ -96,7 +97,7 @@ func (s *server) archiveHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := context.Background()
 
 	// Get Canberra location
-	loc, err := time.LoadLocation("Australia/Canberra")
+	loc, err := s.loadLocation("Australia/Canberra")
 	if err != nil {
 		log.Printf("Error loading location: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
@@ -131,14 +132,14 @@ func (s *server) archiveHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Idempotency check
 	fileName := fmt.Sprintf("%s.jsonl", targetDate.Format("2006-01-02"))
-	obj := s.storageClient.Bucket(s.bucketName).Object(fileName)
+	obj := s.gcsClient.Bucket(s.bucketName).Object(fileName)
 	_, err = obj.Attrs(ctx)
 	if err == nil {
 		log.Printf("Archive for %s already exists. Skipping.", targetDate.Format("2006-01-02"))
 		fmt.Fprintf(w, "Archive for %s already exists. Nothing to do.", targetDate.Format("2006-01-02"))
 		return
 	}
-	if !errors.Is(err, gcs.ErrObjectNotExist) {
+	if !storage.IsObjectNotExist(err) {
 		log.Printf("Error checking for existing archive: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
@@ -147,7 +148,7 @@ func (s *server) archiveHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("Archiving alerts for %s (from %s to %s)", targetDate.Format("2006-01-02"), startOfDay, endOfDay)
 
 	// Get alerts from Firestore
-	alerts, err := s.firestoreClient.GetPoliceAlertsByDateRange(ctx, startOfDay, endOfDay)
+	alerts, err := s.alertStore.GetPoliceAlertsByDateRange(ctx, startOfDay, endOfDay)
 	if err != nil {
 		log.Printf("Error getting alerts from Firestore: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)

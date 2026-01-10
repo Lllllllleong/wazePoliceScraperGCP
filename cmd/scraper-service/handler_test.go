@@ -564,5 +564,3 @@ func TestHTTPRequestHeaders(t *testing.T) {
 		t.Errorf("expected GET method, got %s", capturedRequest.Method)
 	}
 }
-
-

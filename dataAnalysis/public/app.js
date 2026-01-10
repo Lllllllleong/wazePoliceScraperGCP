@@ -221,7 +221,7 @@ function initDatePicker() {
         dateFormat: 'Y-m-d',
         minDate: MIN_DATE,
         maxDate: today, 
-        inline: false,
+        inline: true,
         disable: [
             '2025-10-03', // Hardcoded unavailable date
             '2025-09-27'
