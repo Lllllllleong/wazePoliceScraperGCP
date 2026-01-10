@@ -84,4 +84,3 @@ func TestResponseStats(t *testing.T) {
 		t.Errorf("Expected street filter 'Hume Highway', got %s", stats.StreetsFiltered[0])
 	}
 }
-
