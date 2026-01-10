@@ -23,48 +23,49 @@ The following diagram illustrates the flow of data and the interaction between t
 
 ```mermaid
 graph TD
-    subgraph External Services
+    subgraph External_Services [External Services]
         Waze[Waze Live Data]
         Scheduler[Cloud Scheduler]
     end
 
-    subgraph GCP Backend
-        subgraph "scraper-service (Cloud Run)"
+    subgraph GCP_Backend [GCP Backend]
+        subgraph Scraper_SRV [scraper-service: Cloud Run]
             Scraper(Go App)
         end
 
-        subgraph "alerts-service (Cloud Run)"
+        subgraph Alerts_SRV [alerts-service: Cloud Run]
             AlertsAPI(Go API)
         end
 
-        subgraph "archive-service (Cloud Run)"
+        subgraph Archive_SRV [archive-service: Cloud Run]
             Archive(Go App)
         end
 
-        subgraph Data Storage
+        subgraph Data_Storage [Data Storage]
             Firestore[(Firestore Database)]
             GCS[(Cloud Storage Bucket)]
         end
     end
 
-    subgraph User Interface
+    subgraph UI [User Interface]
         Dashboard[Data Analysis Dashboard]
     end
 
     %% Data Flow
-    Scheduler -- Triggers every X minutes --> Scraper
-    Scraper -- Fetches alerts --> Waze
-    Scraper -- Writes alerts --> Firestore
+    Scheduler -->|Triggers every X min| Scraper
+    Scraper -->|Fetches alerts| Waze
+    Scraper -->|Writes alerts| Firestore
 
-    Scheduler -- Triggers daily --> Archive
-    Archive -- Reads old alerts --> Firestore
-    Archive -- Writes archives --> GCS
+    Scheduler -->|Triggers daily| Archive
+    Archive -->|Reads old alerts| Firestore
+    Archive -->|Writes archives| GCS
 
-    Dashboard -- User selects dates --> AlertsAPI
-    AlertsAPI -- Reads fresh alerts --> Firestore
-    AlertsAPI -- Reads archived alerts --> GCS
-    AlertsAPI -- Returns data --> Dashboard
+    Dashboard -->|User selects dates| AlertsAPI
+    AlertsAPI -->|Reads fresh alerts| Firestore
+    AlertsAPI -->|Reads archived alerts| GCS
+    AlertsAPI -->|Returns data| Dashboard
 
+    %% Styling
     style Scraper fill:#d4edff,stroke:#333,stroke-width:2px
     style AlertsAPI fill:#d4edff,stroke:#333,stroke-width:2px
     style Archive fill:#d4edff,stroke:#333,stroke-width:2px

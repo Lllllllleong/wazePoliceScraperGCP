@@ -119,3 +119,6 @@ dashboardFrontend/
 
 # Exclude dataAnalysis CHANGELOG (development notes)
 dataAnalysis/CHANGELOG.md
+TESTING_AUDIT_REPORT.md
+SECURITY.md
+
