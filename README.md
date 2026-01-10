@@ -1,4 +1,4 @@
-# Waze Police Alert Analysis System
+# Police Alert Analysis System
 
 [![CI/CD Status](https://img.shields.io/badge/CI%2FCD-Passing-brightgreen)](https://github.com/Lllllllleong/wazePoliceScraperGCP/actions)
 [![codecov](https://codecov.io/gh/Lllllllleong/wazePoliceScraperGCP/graph/badge.svg)](https://codecov.io/gh/Lllllllleong/wazePoliceScraperGCP)

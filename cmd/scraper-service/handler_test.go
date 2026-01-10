@@ -523,18 +523,20 @@ func TestPoliceAlertCountLogic(t *testing.T) {
 	}
 }
 
-// TestEnvironmentVariableDefaults tests default values when env vars are not set
+// TestEnvironmentVariableDefaults verifies the package-level default values are correct.
+// These constants are used when environment variables are not set.
 func TestEnvironmentVariableDefaults(t *testing.T) {
-	// Test default port
-	defaultPort := "8080"
-	if defaultPort != "8080" {
-		t.Errorf("expected default port '8080', got %q", defaultPort)
+	// Verify default bboxes are populated (critical for scraper to function)
+	if len(defaultBBoxes) == 0 {
+		t.Error("defaultBBoxes should not be empty - scraper needs at least one bbox")
 	}
 
-	// Test default collection name
-	defaultCollection := "police_alerts"
-	if defaultCollection != "police_alerts" {
-		t.Errorf("expected default collection 'police_alerts', got %q", defaultCollection)
+	// Verify each default bbox is valid format (4 comma-separated values)
+	for i, bbox := range defaultBBoxes {
+		parts := splitBBox(bbox)
+		if len(parts) != 4 {
+			t.Errorf("defaultBBoxes[%d] should have 4 parts, got %d: %s", i, len(parts), bbox)
+		}
 	}
 }
 

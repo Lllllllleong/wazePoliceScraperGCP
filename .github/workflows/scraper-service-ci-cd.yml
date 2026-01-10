@@ -82,10 +82,67 @@ jobs:
           path: coverage.out
           retention-days: 30
 
+  integration-test:
+    name: Integration Tests with Emulators
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          version: 'latest'
+          install_components: 'cloud-firestore-emulator'
+
+      - name: Start Firestore Emulator
+        run: |
+          gcloud emulators firestore start --host-port=localhost:8080 &
+          echo "Waiting for Firestore emulator to start..."
+          sleep 10
+          echo "Firestore emulator should be running"
+
+      - name: Run Integration Tests
+        env:
+          FIRESTORE_EMULATOR_HOST: localhost:8080
+        run: |
+          echo "Running integration tests..."
+          go test -tags=integration -v -race -coverprofile=coverage-integration.out -covermode=atomic ./internal/storage/...
+          echo "Integration tests completed"
+
+      - name: Display Integration Test Coverage
+        run: |
+          go tool cover -func=coverage-integration.out
+
+      - name: Upload Integration Coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage-integration.out
+          flags: scraper-service-integration
+          name: scraper-service-integration-coverage
+          fail_ci_if_error: false
+          verbose: true
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+      - name: Upload Integration Coverage Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scraper-service-integration-coverage
+          path: coverage-integration.out
+          retention-days: 30
+
   build-and-deploy:
     name: Build and Deploy Scraper Service
     runs-on: ubuntu-latest
-    needs: test
+    needs: [test, integration-test]
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
 
     permissions:
