@@ -137,7 +137,7 @@ func TestCorsMiddleware(t *testing.T) {
 func TestCorsMiddlewarePreflightRequest(t *testing.T) {
 	innerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("should not reach here for OPTIONS"))
+		_, _ = w.Write([]byte("should not reach here for OPTIONS"))
 	})
 
 	handler := corsMiddleware(innerHandler)
@@ -195,7 +195,7 @@ func TestGzipMiddleware(t *testing.T) {
 			testBody := "This is a test response that should be compressed if gzip is accepted"
 
 			innerHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.Write([]byte(testBody))
+				_, _ = w.Write([]byte(testBody))
 			})
 
 			handler := gzipMiddleware(innerHandler)
