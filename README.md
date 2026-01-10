@@ -152,7 +152,7 @@ The dashboard will be available at `http://localhost:5000` with Firebase Auth Em
 
 ## Testing
 
-This project maintains **comprehensive test coverage** across backend and frontend with strong architectural foundations. For complete testing documentation, see **[docs/TESTING.md](docs/TESTING.md)**.
+This project maintains **acceptable test coverage** across backend and frontend with strong architectural foundations. For complete testing documentation, see **[docs/TESTING.md](docs/TESTING.md)**.
 
 ### Quick Test Commands
 
@@ -330,7 +330,7 @@ Based on typical usage patterns for this system:
 
 **Base URL**: `https://alerts-service-<hash>-uc.a.run.app` (Cloud Run URL)
 
-#### `POST /alerts`
+#### `GET /police_alerts`
 
 Retrieve police alerts for specified dates.
 
@@ -338,27 +338,26 @@ Retrieve police alerts for specified dates.
 
 **Headers**:
 ```http
-Content-Type: application/json
 Authorization: Bearer <FIREBASE_ID_TOKEN>
 ```
 
-**Request Body**:
-```json
-{
-  "dates": [
-    "2026-01-08T00:00:00.000Z",
-    "2026-01-09T00:00:00.000Z"
-  ]
-}
+**Query Parameters**:
+```
+dates=2026-01-08,2026-01-09
+```
+
+**Example Request**:
+```
+GET /police_alerts?dates=2026-01-08,2026-01-09
 ```
 
 **Response**: JSONL stream (GZIP compressed)
 ```jsonl
-{"uuid":"...","lat":-35.123,"lon":149.456,"reportTime":"2026-01-08T10:30:00Z",...}
-{"uuid":"...","lat":-33.987,"lon":151.234,"reportTime":"2026-01-08T11:45:00Z",...}
+{"UUID":"...","Type":"POLICE","Subtype":"POLICE_VISIBLE","PublishTime":"2026-01-08T10:30:00Z","ExpireTime":"2026-01-08T11:00:00Z",...}
+{"UUID":"...","Type":"POLICE","Subtype":"POLICE_HIDING","PublishTime":"2026-01-08T11:45:00Z","ExpireTime":"2026-01-08T12:15:00Z",...}
 ```
 
-**Response Fields**: See [Data Schema](#data-schema) section below.
+**Note**: Field names use Go struct field names (e.g., `UUID`, `PublishTime`, `ExpireTime`) as the struct doesn't define JSON tags. See [Data Schema](#data-schema) section below for complete field list.
 
 **Rate Limiting**: 30 requests per minute per authenticated user
 
@@ -378,28 +377,39 @@ Stored in Firestore collection `police_alerts`:
 
 ```go
 type PoliceAlert struct {
-    UUID         string    `json:"uuid" firestore:"uuid"`           // Unique identifier from Waze
-    Latitude     float64   `json:"lat" firestore:"lat"`             // Latitude coordinate
-    Longitude    float64   `json:"lon" firestore:"lon"`             // Longitude coordinate
-    ReportTime   time.Time `json:"reportTime" firestore:"reportTime"` // When alert was first reported
-    Street       string    `json:"street" firestore:"street"`       // Street name
-    City         string    `json:"city" firestore:"city"`           // City name
-    Country      string    `json:"country" firestore:"country"`     // Country code
-    Subtype      string    `json:"subtype" firestore:"subtype"`     // Alert subtype (e.g., "POLICE_VISIBLE")
-    Reliability  int       `json:"reliability" firestore:"reliability"` // Reliability score
-    Confidence   int       `json:"confidence" firestore:"confidence"`   // Confidence level
-    NumThumbsUp  int       `json:"nThumbsUp" firestore:"nThumbsUp"`    // User confirmations
-    ScrapedAt    time.Time `json:"scrapedAt" firestore:"scrapedAt"`    // When we scraped this alert
+    UUID         string    `firestore:"uuid"`           // Unique identifier from Waze
+    ID           string    `firestore:"id,omitempty"`   // Additional ID field
+    Type         string    `firestore:"type"`           // Alert type (e.g., "POLICE")
+    Subtype      string    `firestore:"subtype"`        // Alert subtype (e.g., "POLICE_VISIBLE")
+    Street       string    `firestore:"street,omitempty"`      // Street name
+    City         string    `firestore:"city,omitempty"`        // City name
+    Country      string    `firestore:"country,omitempty"`     // Country code
+    LocationGeo  *latlng.LatLng `firestore:"location_geo"` // Geographic coordinates (latitude/longitude)
+    Reliability  int       `firestore:"reliability,omitempty"` // Reliability score
+    Confidence   int       `firestore:"confidence,omitempty"`   // Confidence level
+    ReportRating int       `firestore:"report_rating,omitempty"` // Report rating
+    PublishTime  time.Time `firestore:"publish_time"`   // When alert was first published (from pubMillis)
+    ScrapeTime   time.Time `firestore:"scrape_time"`    // First time we scraped this alert
+    ExpireTime   time.Time `firestore:"expire_time"`    // Last time we saw this alert (assumed expired after)
+    LastVerificationTime *time.Time `firestore:"last_verification_time,omitempty"` // Latest comment timestamp
+    ActiveMillis           int64  `firestore:"active_millis"` // Alert duration (expireMillis - pubMillis)
+    LastVerificationMillis *int64 `firestore:"last_verification_millis,omitempty"` // Latest comment reportMillis
+    NThumbsUpInitial int `firestore:"n_thumbs_up_initial"` // Initial thumbs up count
+    NThumbsUpLast    int `firestore:"n_thumbs_up_last"`    // Most recent thumbs up count
+    RawDataInitial string `firestore:"raw_data_initial"` // First scrape JSON
+    RawDataLast    string `firestore:"raw_data_last"`    // Most recent scrape JSON
 }
 ```
+
+**Note on JSON Serialization**: The `PoliceAlert` struct does not define JSON tags, so when marshaled to JSON (e.g., in API responses), it uses the default Go struct field names (e.g., `UUID`, `PublishTime`, `ExpireTime`) rather than custom JSON names.
 
 ### Alert Subtypes
 
 Common police alert subtypes from Waze:
 *   `POLICE_VISIBLE`: Visible police presence
 *   `POLICE_HIDING`: Hidden/speed trap
-*   `POLICE_GENERAL`: General police alert
-*   `POLICE_CARS`: Multiple police vehicles
+*   `POLICE_WITH_MOBILE_CAMERA`: Police with mobile speed camera
+*   `POLICE_GENERAL`: General police alert (empty string subtype)
 
 ### Archive Format (GCS)
 
