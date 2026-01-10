@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Lllllllleong/wazePoliceScraperGCP/internal/models"
+	"github.com/Lllllllleong/wazePoliceScraperGCP/internal/storage"
 )
 
 // TestHealthHandler tests the health check endpoint
@@ -491,4 +494,571 @@ func TestAlertCountInResponse(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// Handler Integration Tests with Mocks
+// =============================================================================
+
+// mockAlertStore is a mock implementation of storage.AlertStore for testing.
+type mockAlertStore struct {
+	GetPoliceAlertsByDateRangeFunc func(ctx context.Context, start, end time.Time) ([]models.PoliceAlert, error)
+}
+
+func (m *mockAlertStore) GetPoliceAlertsByDateRange(ctx context.Context, start, end time.Time) ([]models.PoliceAlert, error) {
+	if m.GetPoliceAlertsByDateRangeFunc != nil {
+		return m.GetPoliceAlertsByDateRangeFunc(ctx, start, end)
+	}
+	return nil, nil
+}
+
+func (m *mockAlertStore) SavePoliceAlerts(ctx context.Context, alerts []models.WazeAlert, scrapeTime time.Time) error {
+	return nil
+}
+
+func (m *mockAlertStore) GetPoliceAlertsByDatesWithFilters(ctx context.Context, dates []string, subtypes []string, streets []string) ([]models.PoliceAlert, error) {
+	return nil, nil
+}
+
+func (m *mockAlertStore) Close() error {
+	return nil
+}
+
+// Ensure mockAlertStore implements storage.AlertStore
+var _ storage.AlertStore = (*mockAlertStore)(nil)
+
+// createTestServer creates a server with mock dependencies for testing
+func createTestServer(alertStore storage.AlertStore, gcsClient storage.GCSClient) *server {
+	return &server{
+		alertStore:   alertStore,
+		gcsClient:    gcsClient,
+		bucketName:   "test-bucket",
+		loadLocation: time.LoadLocation,
+	}
+}
+
+// TestArchiveHandlerSuccess tests successful archive operation
+func TestArchiveHandlerSuccess(t *testing.T) {
+	testDate := "2024-01-15"
+	alerts := []models.PoliceAlert{
+		{UUID: "alert-1", Type: "POLICE", Subtype: "POLICE_VISIBLE"},
+		{UUID: "alert-2", Type: "POLICE", Subtype: "POLICE_HIDING"},
+	}
+
+	var writtenData []byte
+	mockWriter := &storage.MockGCSWriter{}
+
+	mockStore := &mockAlertStore{
+		GetPoliceAlertsByDateRangeFunc: func(ctx context.Context, start, end time.Time) ([]models.PoliceAlert, error) {
+			return alerts, nil
+		},
+	}
+
+	mockObjHandle := &storage.MockGCSObjectHandle{
+		AttrsFunc: func(ctx context.Context) (*storage.GCSObjectAttrs, error) {
+			// Object doesn't exist
+			return nil, storage.ErrObjectNotExist
+		},
+		NewWriterFunc: func(ctx context.Context) storage.GCSWriter {
+			return mockWriter
+		},
+	}
+
+	mockBucket := &storage.MockGCSBucketHandle{
+		ObjectFunc: func(name string) storage.GCSObjectHandle {
+			expectedFilename := testDate + ".jsonl"
+			if name != expectedFilename {
+				t.Errorf("expected filename %q, got %q", expectedFilename, name)
+			}
+			return mockObjHandle
+		},
+	}
+
+	mockGCS := &storage.MockGCSClient{
+		BucketFunc: func(name string) storage.GCSBucketHandle {
+			if name != "test-bucket" {
+				t.Errorf("expected bucket 'test-bucket', got %q", name)
+			}
+			return mockBucket
+		},
+	}
+
+	s := createTestServer(mockStore, mockGCS)
+
+	body := strings.NewReader(`{"date": "` + testDate + `"}`)
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	rr := httptest.NewRecorder()
+
+	s.archiveHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	if !strings.Contains(rr.Body.String(), "Successfully archived 2 alerts") {
+		t.Errorf("expected success message with count, got %q", rr.Body.String())
+	}
+
+	// Verify data was written
+	writtenData = mockWriter.Written
+	if len(writtenData) == 0 {
+		t.Error("expected data to be written to GCS")
+	}
+
+	// Verify JSONL format
+	lines := strings.Split(strings.TrimSpace(string(writtenData)), "\n")
+	if len(lines) != 2 {
+		t.Errorf("expected 2 JSONL lines, got %d", len(lines))
+	}
+}
+
+// TestArchiveHandlerAlreadyExists tests idempotency when archive already exists
+func TestArchiveHandlerAlreadyExists(t *testing.T) {
+	testDate := "2024-01-15"
+
+	mockStore := &mockAlertStore{}
+
+	mockObjHandle := &storage.MockGCSObjectHandle{
+		AttrsFunc: func(ctx context.Context) (*storage.GCSObjectAttrs, error) {
+			// Object already exists
+			return &storage.GCSObjectAttrs{
+				Name: testDate + ".jsonl",
+				Size: 1024,
+			}, nil
+		},
+	}
+
+	mockBucket := &storage.MockGCSBucketHandle{
+		ObjectFunc: func(name string) storage.GCSObjectHandle {
+			return mockObjHandle
+		},
+	}
+
+	mockGCS := &storage.MockGCSClient{
+		BucketFunc: func(name string) storage.GCSBucketHandle {
+			return mockBucket
+		},
+	}
+
+	s := createTestServer(mockStore, mockGCS)
+
+	body := strings.NewReader(`{"date": "` + testDate + `"}`)
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	rr := httptest.NewRecorder()
+
+	s.archiveHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+
+	if !strings.Contains(rr.Body.String(), "already exists") {
+		t.Errorf("expected 'already exists' message, got %q", rr.Body.String())
+	}
+}
+
+// TestArchiveHandlerNoAlerts tests behavior when no alerts for the date
+func TestArchiveHandlerNoAlerts(t *testing.T) {
+	testDate := "2024-01-15"
+
+	mockStore := &mockAlertStore{
+		GetPoliceAlertsByDateRangeFunc: func(ctx context.Context, start, end time.Time) ([]models.PoliceAlert, error) {
+			return []models.PoliceAlert{}, nil
+		},
+	}
+
+	mockObjHandle := &storage.MockGCSObjectHandle{
+		AttrsFunc: func(ctx context.Context) (*storage.GCSObjectAttrs, error) {
+			return nil, storage.ErrObjectNotExist
+		},
+	}
+
+	mockBucket := &storage.MockGCSBucketHandle{
+		ObjectFunc: func(name string) storage.GCSObjectHandle {
+			return mockObjHandle
+		},
+	}
+
+	mockGCS := &storage.MockGCSClient{
+		BucketFunc: func(name string) storage.GCSBucketHandle {
+			return mockBucket
+		},
+	}
+
+	s := createTestServer(mockStore, mockGCS)
+
+	body := strings.NewReader(`{"date": "` + testDate + `"}`)
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	rr := httptest.NewRecorder()
+
+	s.archiveHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+
+	if !strings.Contains(rr.Body.String(), "No alerts to archive") {
+		t.Errorf("expected 'No alerts to archive' message, got %q", rr.Body.String())
+	}
+}
+
+// TestArchiveHandlerFirestoreError tests error handling for Firestore failures
+func TestArchiveHandlerFirestoreError(t *testing.T) {
+	testDate := "2024-01-15"
+
+	mockStore := &mockAlertStore{
+		GetPoliceAlertsByDateRangeFunc: func(ctx context.Context, start, end time.Time) ([]models.PoliceAlert, error) {
+			return nil, errors.New("firestore connection failed")
+		},
+	}
+
+	mockObjHandle := &storage.MockGCSObjectHandle{
+		AttrsFunc: func(ctx context.Context) (*storage.GCSObjectAttrs, error) {
+			return nil, storage.ErrObjectNotExist
+		},
+	}
+
+	mockBucket := &storage.MockGCSBucketHandle{
+		ObjectFunc: func(name string) storage.GCSObjectHandle {
+			return mockObjHandle
+		},
+	}
+
+	mockGCS := &storage.MockGCSClient{
+		BucketFunc: func(name string) storage.GCSBucketHandle {
+			return mockBucket
+		},
+	}
+
+	s := createTestServer(mockStore, mockGCS)
+
+	body := strings.NewReader(`{"date": "` + testDate + `"}`)
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	rr := httptest.NewRecorder()
+
+	s.archiveHandler(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected status %d, got %d", http.StatusInternalServerError, rr.Code)
+	}
+}
+
+// TestArchiveHandlerGCSWriteError tests error handling for GCS write failures
+func TestArchiveHandlerGCSWriteError(t *testing.T) {
+	testDate := "2024-01-15"
+	alerts := []models.PoliceAlert{
+		{UUID: "alert-1", Type: "POLICE"},
+	}
+
+	mockStore := &mockAlertStore{
+		GetPoliceAlertsByDateRangeFunc: func(ctx context.Context, start, end time.Time) ([]models.PoliceAlert, error) {
+			return alerts, nil
+		},
+	}
+
+	mockWriter := &storage.MockGCSWriter{
+		WriteFunc: func(p []byte) (n int, err error) {
+			return 0, errors.New("gcs write failed")
+		},
+	}
+
+	mockObjHandle := &storage.MockGCSObjectHandle{
+		AttrsFunc: func(ctx context.Context) (*storage.GCSObjectAttrs, error) {
+			return nil, storage.ErrObjectNotExist
+		},
+		NewWriterFunc: func(ctx context.Context) storage.GCSWriter {
+			return mockWriter
+		},
+	}
+
+	mockBucket := &storage.MockGCSBucketHandle{
+		ObjectFunc: func(name string) storage.GCSObjectHandle {
+			return mockObjHandle
+		},
+	}
+
+	mockGCS := &storage.MockGCSClient{
+		BucketFunc: func(name string) storage.GCSBucketHandle {
+			return mockBucket
+		},
+	}
+
+	s := createTestServer(mockStore, mockGCS)
+
+	body := strings.NewReader(`{"date": "` + testDate + `"}`)
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	rr := httptest.NewRecorder()
+
+	s.archiveHandler(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected status %d, got %d", http.StatusInternalServerError, rr.Code)
+	}
+}
+
+// TestArchiveHandlerGCSCloseError tests error handling for GCS close failures
+func TestArchiveHandlerGCSCloseError(t *testing.T) {
+	testDate := "2024-01-15"
+	alerts := []models.PoliceAlert{
+		{UUID: "alert-1", Type: "POLICE"},
+	}
+
+	mockStore := &mockAlertStore{
+		GetPoliceAlertsByDateRangeFunc: func(ctx context.Context, start, end time.Time) ([]models.PoliceAlert, error) {
+			return alerts, nil
+		},
+	}
+
+	mockWriter := &storage.MockGCSWriter{
+		CloseFunc: func() error {
+			return errors.New("gcs close failed")
+		},
+	}
+
+	mockObjHandle := &storage.MockGCSObjectHandle{
+		AttrsFunc: func(ctx context.Context) (*storage.GCSObjectAttrs, error) {
+			return nil, storage.ErrObjectNotExist
+		},
+		NewWriterFunc: func(ctx context.Context) storage.GCSWriter {
+			return mockWriter
+		},
+	}
+
+	mockBucket := &storage.MockGCSBucketHandle{
+		ObjectFunc: func(name string) storage.GCSObjectHandle {
+			return mockObjHandle
+		},
+	}
+
+	mockGCS := &storage.MockGCSClient{
+		BucketFunc: func(name string) storage.GCSBucketHandle {
+			return mockBucket
+		},
+	}
+
+	s := createTestServer(mockStore, mockGCS)
+
+	body := strings.NewReader(`{"date": "` + testDate + `"}`)
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	rr := httptest.NewRecorder()
+
+	s.archiveHandler(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected status %d, got %d", http.StatusInternalServerError, rr.Code)
+	}
+}
+
+// TestArchiveHandlerGCSAttrsError tests error handling for GCS Attrs failures (not NotExist)
+func TestArchiveHandlerGCSAttrsError(t *testing.T) {
+	testDate := "2024-01-15"
+
+	mockStore := &mockAlertStore{}
+
+	mockObjHandle := &storage.MockGCSObjectHandle{
+		AttrsFunc: func(ctx context.Context) (*storage.GCSObjectAttrs, error) {
+			return nil, errors.New("gcs permission denied")
+		},
+	}
+
+	mockBucket := &storage.MockGCSBucketHandle{
+		ObjectFunc: func(name string) storage.GCSObjectHandle {
+			return mockObjHandle
+		},
+	}
+
+	mockGCS := &storage.MockGCSClient{
+		BucketFunc: func(name string) storage.GCSBucketHandle {
+			return mockBucket
+		},
+	}
+
+	s := createTestServer(mockStore, mockGCS)
+
+	body := strings.NewReader(`{"date": "` + testDate + `"}`)
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	rr := httptest.NewRecorder()
+
+	s.archiveHandler(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected status %d, got %d", http.StatusInternalServerError, rr.Code)
+	}
+}
+
+// TestArchiveHandlerInvalidDateFormat tests error handling for invalid date format
+func TestArchiveHandlerInvalidDateFormat(t *testing.T) {
+	mockStore := &mockAlertStore{}
+	mockGCS := &storage.MockGCSClient{}
+
+	s := createTestServer(mockStore, mockGCS)
+
+	body := strings.NewReader(`{"date": "15-01-2024"}`)
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	rr := httptest.NewRecorder()
+
+	s.archiveHandler(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected status %d, got %d", http.StatusBadRequest, rr.Code)
+	}
+
+	if !strings.Contains(rr.Body.String(), "Invalid date format") {
+		t.Errorf("expected 'Invalid date format' message, got %q", rr.Body.String())
+	}
+}
+
+// TestArchiveHandlerDefaultsToYesterday tests that no date defaults to yesterday
+func TestArchiveHandlerDefaultsToYesterday(t *testing.T) {
+	var capturedStart time.Time
+
+	mockStore := &mockAlertStore{
+		GetPoliceAlertsByDateRangeFunc: func(ctx context.Context, start, end time.Time) ([]models.PoliceAlert, error) {
+			capturedStart = start
+			return []models.PoliceAlert{}, nil
+		},
+	}
+
+	mockObjHandle := &storage.MockGCSObjectHandle{
+		AttrsFunc: func(ctx context.Context) (*storage.GCSObjectAttrs, error) {
+			return nil, storage.ErrObjectNotExist
+		},
+	}
+
+	mockBucket := &storage.MockGCSBucketHandle{
+		ObjectFunc: func(name string) storage.GCSObjectHandle {
+			return mockObjHandle
+		},
+	}
+
+	mockGCS := &storage.MockGCSClient{
+		BucketFunc: func(name string) storage.GCSBucketHandle {
+			return mockBucket
+		},
+	}
+
+	s := createTestServer(mockStore, mockGCS)
+
+	// Empty body - should default to yesterday
+	body := strings.NewReader(`{}`)
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	rr := httptest.NewRecorder()
+
+	s.archiveHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+
+	// Verify the date range is for yesterday
+	loc, _ := time.LoadLocation("Australia/Canberra")
+	yesterday := time.Now().In(loc).AddDate(0, 0, -1)
+	expectedStart := time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 0, 0, 0, 0, loc)
+
+	if capturedStart.Year() != expectedStart.Year() ||
+		capturedStart.Month() != expectedStart.Month() ||
+		capturedStart.Day() != expectedStart.Day() {
+		t.Errorf("expected date range for %s, got %s", expectedStart.Format("2006-01-02"), capturedStart.Format("2006-01-02"))
+	}
+}
+
+// TestArchiveHandlerTimezoneLoadError tests error handling for timezone loading failures
+func TestArchiveHandlerTimezoneLoadError(t *testing.T) {
+	mockStore := &mockAlertStore{}
+	mockGCS := &storage.MockGCSClient{}
+
+	s := &server{
+		alertStore: mockStore,
+		gcsClient:  mockGCS,
+		bucketName: "test-bucket",
+		loadLocation: func(name string) (*time.Location, error) {
+			return nil, errors.New("timezone not found")
+		},
+	}
+
+	body := strings.NewReader(`{"date": "2024-01-15"}`)
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	rr := httptest.NewRecorder()
+
+	s.archiveHandler(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("expected status %d, got %d", http.StatusInternalServerError, rr.Code)
+	}
+}
+
+// TestArchiveHandlerVerifiesJSONLContent tests that correct JSONL content is written
+func TestArchiveHandlerVerifiesJSONLContent(t *testing.T) {
+	testDate := "2024-01-15"
+	now := time.Now()
+	alerts := []models.PoliceAlert{
+		{
+			UUID:        "test-uuid-123",
+			Type:        "POLICE",
+			Subtype:     "POLICE_VISIBLE",
+			Street:      "Test Street",
+			City:        "Canberra",
+			Country:     "AU",
+			Reliability: 8,
+			PublishTime: now,
+		},
+	}
+
+	mockWriter := &storage.MockGCSWriter{}
+
+	mockStore := &mockAlertStore{
+		GetPoliceAlertsByDateRangeFunc: func(ctx context.Context, start, end time.Time) ([]models.PoliceAlert, error) {
+			return alerts, nil
+		},
+	}
+
+	mockObjHandle := &storage.MockGCSObjectHandle{
+		AttrsFunc: func(ctx context.Context) (*storage.GCSObjectAttrs, error) {
+			return nil, storage.ErrObjectNotExist
+		},
+		NewWriterFunc: func(ctx context.Context) storage.GCSWriter {
+			return mockWriter
+		},
+	}
+
+	mockBucket := &storage.MockGCSBucketHandle{
+		ObjectFunc: func(name string) storage.GCSObjectHandle {
+			return mockObjHandle
+		},
+	}
+
+	mockGCS := &storage.MockGCSClient{
+		BucketFunc: func(name string) storage.GCSBucketHandle {
+			return mockBucket
+		},
+	}
+
+	s := createTestServer(mockStore, mockGCS)
+
+	body := strings.NewReader(`{"date": "` + testDate + `"}`)
+	req := httptest.NewRequest(http.MethodPost, "/", body)
+	rr := httptest.NewRecorder()
+
+	s.archiveHandler(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	// Parse the written JSONL
+	writtenData := mockWriter.Written
+	var parsed models.PoliceAlert
+	if err := json.Unmarshal([]byte(strings.TrimSpace(string(writtenData))), &parsed); err != nil {
+		t.Fatalf("failed to parse written JSONL: %v", err)
+	}
+
+	// Verify content
+	if parsed.UUID != "test-uuid-123" {
+		t.Errorf("expected UUID 'test-uuid-123', got %q", parsed.UUID)
+	}
+	if parsed.Street != "Test Street" {
+		t.Errorf("expected Street 'Test Street', got %q", parsed.Street)
+	}
+	if parsed.City != "Canberra" {
+		t.Errorf("expected City 'Canberra', got %q", parsed.City)
+	}
+}
 
