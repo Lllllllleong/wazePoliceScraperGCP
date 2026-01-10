@@ -588,4 +588,5 @@ gcloud run deploy scraper-service \
   --platform managed
 ```
 
+
 For detailed infrastructure documentation, see [`terraform/TERRAFORM_MIGRATION_SUMMARY.md`](terraform/TERRAFORM_MIGRATION_SUMMARY.md).
