@@ -2,12 +2,12 @@
 
 [![CI/CD Status](https://img.shields.io/badge/CI%2FCD-Passing-brightgreen)](https://github.com/Lllllllleong/wazePoliceScraperGCP/actions)
 [![codecov](https://codecov.io/gh/Lllllllleong/wazePoliceScraperGCP/graph/badge.svg)](https://codecov.io/gh/Lllllllleong/wazePoliceScraperGCP)
-[![Go Report Card](https://goreportcard.com/badge/github.com/Lllllllleong/wazePoliceScraperGCP)](https://goreportcard.com/report/github.com/Lllllllleong/wazePoliceScraperGCP)
+[![Go Report Card](https://goreportcard.com/badge/github.com/Lllllllleong/wazePoliceScraperGCP?style=flat)](https://goreportcard.com/report/github.com/Lllllllleong/wazePoliceScraperGCP)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Terraform](https://img.shields.io/badge/Terraform-1.10-7B42BC?logo=terraform&logoColor=white)](https://www.terraform.io/)
 [![Branch Protection](https://img.shields.io/badge/Branch%20Protection-Enabled-success)](https://github.com/Lllllllleong/wazePoliceScraperGCP/settings/rules)
 
-A professional, cloud-native system for scraping, storing, and analyzing police alert data from Waze's live traffic feed. This project demonstrates a complete, production-ready application built with a microservices architecture on Google Cloud Platform.
+A system for scraping, storing, and analyzing police alert data from Waze's live traffic API. Built with microservices on Google Cloud Platform.
 
 ---
 
@@ -24,15 +24,15 @@ A live version of the data analysis dashboard is deployed and accessible here:
 
 ## Core Features
 
-*   **Automated Data Scraping**: A serverless Go service runs on a schedule to automatically fetch and store police alert data.
-*   **Interactive Map Visualization**: A rich frontend dashboard built with vanilla JavaScript and Leaflet.js to display alerts on an interactive map.
-*   **High-Fidelity Timeline**: Accurately visualizes the true lifespan of each alert, allowing for powerful temporal analysis.
-*   **Advanced Filtering**: A dynamic, tag-based UI to filter data by multiple subtypes and streets.
-*   **Microservices Architecture**: A robust backend composed of distinct services for scraping, serving data, and archiving.
-*   **Secure API**: Protected by Firebase Anonymous Authentication with per-user rate limiting.
-*   **Infrastructure as Code**: Full Terraform implementation for reproducible infrastructure deployment.
-*   **CI/CD Automation**: Fully automated build, test, and deployment pipelines using GitHub Actions.
-*   **Serverless & Scalable**: Built entirely on serverless technologies (Cloud Run, Firestore) for cost-efficiency and scalability.
+*   **Automated Data Scraping**: Scheduled Go service fetches and stores police alert data.
+*   **Map Visualization**: Frontend dashboard built with vanilla JavaScript and Leaflet.js displays alerts on a map.
+*   **Timeline View**: Visualizes the lifespan of each alert.
+*   **Filtering**: Tag-based UI filters data by subtypes and streets.
+*   **Microservices Architecture**: Separate services for scraping, serving data, and archiving.
+*   **API Security**: Firebase Anonymous Authentication with per-user rate limiting.
+*   **Infrastructure as Code**: Terraform implementation for infrastructure deployment.
+*   **CI/CD**: Automated build, test, and deployment pipelines using GitHub Actions.
+*   **Serverless**: Built on Cloud Run and Firestore.
 
 ---
 
@@ -51,11 +51,11 @@ A live version of the data analysis dashboard is deployed and accessible here:
 
 ## Architecture Overview
 
-The system is designed as a set of cooperating microservices deployed on Google Cloud Run. This serverless architecture ensures that resources are only consumed when a service is active, making it highly cost-effective.
+The system consists of microservices deployed on Google Cloud Run. Resources are consumed only when services are active.
 
-*   **`scraper-service`**: A Go application on Cloud Run, triggered by Cloud Scheduler, that fetches data from Waze and saves it to Firestore.
-*   **`alerts-service`**: A Go API on Cloud Run that serves alert data to the frontend with Firebase Authentication and rate limiting, intelligently fetching from GCS archives or live from Firestore with GZIP-compressed JSONL streaming.
-*   **`archive-service`**: A Go application on Cloud Run, triggered daily by Cloud Scheduler, that moves older data from Firestore to Google Cloud Storage for long-term archival.
+*   **`scraper-service`**: Cloud Run job triggered by Cloud Scheduler. Fetches data from Waze, filters and deduplicates, then writes/updates alert data to Firestore.
+*   **`alerts-service`**: Cloud Run API serves alert data to the frontend. Includes Firebase Authentication and rate limiting. Fetches from GCS archives or Firestore, streaming GZIP-compressed JSONL.
+*   **`archive-service`**: Cloud Run job triggered daily by Cloud Scheduler. Moves older data from Firestore to Google Cloud Storage.
 
 For a detailed breakdown of the system design, data flow, and technology rationale, please see the **[Architecture Document](./docs/ARCHITECTURE.md)**.
 
@@ -63,22 +63,13 @@ For a detailed breakdown of the system design, data flow, and technology rationa
 
 ## Why I Built This
 
-This project was spawned out of curiosity developed from my numerous drives between Sydney and Canberra. I also took this project as a chance to demonstrate production-grade software engineering practices, including:
+This project started from curiosity during drives between Sydney and Canberra.
 
-- **Microservices Architecture**: Designing loosely-coupled, independently deployable services
-- **Cloud-Native Development**: Leveraging serverless technologies for cost efficiency and scalability
-- **Infrastructure as Code**: Managing infrastructure declaratively with Terraform
-- **API Security**: Implementing authentication, rate limiting, and CORS protection
-- **Data Streaming**: Efficient handling of large datasets with JSONL streaming and GZIP compression
-- **CI/CD Automation**: Full automation from code commit to production deployment
-
-The technical decisions made throughout development are documented in the [ADR (Architectural Decision Record)](./docs/ADR.md).
+Technical decisions are documented in the [ADR (Architectural Decision Record)](./docs/ADR.md).
 
 ---
 
 ## Project Documentation
-
-This project adheres to a high standard of documentation to demonstrate professional development practices.
 
 *   **[ARCHITECTURE.md](./docs/ARCHITECTURE.md)**: A detailed explanation of the system's architecture, components, and data flow.
 *   **[ADR.md](./docs/ADR.md)**: An Architectural Decision Record (ADR) that chronicles the key engineering decisions and trade-offs made during development.
@@ -141,18 +132,19 @@ go run ./cmd/scraper-service/main.go
 The service will start on `http://localhost:8080`.
 
 ### 5. Run the Frontend Dashboard
-The frontend is a simple static site served via Firebase Hosting emulator.
 ```bash
 cd dataAnalysis
 firebase emulators:start
 ```
-The dashboard will be available at `http://localhost:5000` with Firebase Auth Emulator at `localhost:9099`. The configuration in `dataAnalysis/public/config.js` automatically detects localhost and uses the appropriate endpoints and emulators.
+Dashboard: `http://localhost:5000`  
+Firebase Auth Emulator: `localhost:9099`  
+Configuration in `dataAnalysis/public/config.js` detects localhost and uses emulator endpoints.
 
 ---
 
 ## Testing
 
-This project maintains **acceptable test coverage** across backend and frontend with strong architectural foundations. For complete testing documentation, see **[docs/TESTING.md](docs/TESTING.md)**.
+For complete testing documentation, see **[docs/TESTING.md](docs/TESTING.md)**.
 
 ### Quick Test Commands
 
@@ -175,13 +167,13 @@ npm run test:coverage   # With coverage report
 
 ### Coverage Status
 
-| Component | Coverage | Status |
-|-----------|----------|--------|
-| Backend (Go) | ~60% | ✅ Strong |
-| Frontend (JS) | 100% | ✅ Excellent |
-| Integration Tests | ✅ Active | Firestore emulator |
+| Component | Coverage |
+|-----------|----------|
+| Backend (Go) | ~60% |
+| Frontend (JS) | 100% |
+| Integration Tests | Firestore emulator |
 
-All tests run automatically in CI/CD with race detection and coverage enforcement. See [docs/TESTING.md](docs/TESTING.md) for architecture, best practices, and detailed guides.
+Tests run automatically in CI/CD with race detection. See [docs/TESTING.md](docs/TESTING.md) for details.
 
 ---
 
@@ -454,11 +446,11 @@ For questions, issues, or collaboration:
 
 ## Acknowledgments
 
-*   **Waze**: For providing the live traffic data API that makes this project possible
-*   **Google Cloud Platform**: For the robust serverless infrastructure
-*   **Leaflet.js**: For the excellent open-source mapping library
-*   **Firebase**: For authentication and hosting services
-*   The open-source community for countless libraries and tools used in this project
+*   **Waze**: Live traffic data API
+*   **Google Cloud Platform**: Serverless infrastructure
+*   **Leaflet.js**: Open-source mapping library
+*   **Firebase**: Authentication and hosting
+*   Open-source community for libraries and tools
 
 ---
 
@@ -472,13 +464,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ### Automated Deployment (Recommended)
 
-This project is configured for fully automated deployment using **GitHub Actions**.
-
-When code is pushed to the `main` branch, the CI/CD workflows located in `.github/workflows/` will automatically:
-1.  Lint and test the Go source code.
-2.  Build a Docker container for the relevant service.
-3.  Push the container to Google Artifact Registry.
-4.  Deploy the new container version to Google Cloud Run.
+GitHub Actions workflows in `.github/workflows/` automatically:
+1.  Lint and test Go code
+2.  Build Docker container
+3.  Push to Google Artifact Registry
+4.  Deploy to Google Cloud Run
 
 ### Manual Deployment with Terraform
 
