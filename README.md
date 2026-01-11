@@ -7,7 +7,7 @@
 [![Terraform](https://img.shields.io/badge/Terraform-1.10-7B42BC?logo=terraform&logoColor=white)](https://www.terraform.io/)
 [![Branch Protection](https://img.shields.io/badge/Branch%20Protection-Enabled-success)](https://github.com/Lllllllleong/wazePoliceScraperGCP/settings/rules)
 
-A system for scraping, storing, and analyzing police alert data from Waze's live traffic API. Built with microservices on Google Cloud Platform.
+A system for scraping, storing, and analyzing police alert data from Waze's live traffic API, built with microservices on Google Cloud Platform.
 
 ---
 
