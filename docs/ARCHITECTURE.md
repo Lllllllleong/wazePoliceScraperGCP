@@ -1,6 +1,6 @@
 # System Architecture
 
-This document provides a comprehensive overview of the Waze Police Scraper project's architecture, detailing its components, data flow, and technology stack.
+This document provides an overview of the Waze Police Scraper project's architecture, detailing its components, data flow, and technology stack.
 
 ---
 
@@ -124,15 +124,15 @@ flowchart TB
 
 ## 4. Core Technologies & Rationale
 
-*   **Go**: Chosen for the backend services due to its high performance, low memory footprint (ideal for serverless environments), strong typing, and excellent support for concurrency, which is useful for handling multiple simultaneous requests.
+*   **Go**: Chosen for the backend services due to its high performance, low memory footprint (suitable for serverless environments), strong typing, and support for concurrency.
 
-*   **Google Cloud Run**: Selected as the compute platform for its serverless nature. It offers scale-to-zero capabilities, which is extremely cost-effective for services that are invoked periodically. It also provides a fully managed environment, simplifying deployment and operations.
+*   **Google Cloud Run**: Selected as the compute platform for its serverless nature. It offers scale-to-zero capabilities, which is cost-effective for services that are invoked periodically. It provides a managed environment, simplifying deployment and operations.
 
 *   **Google Cloud Firestore**: Used as the primary database for its ease of use, scalability, and real-time capabilities. Its document-based model is a good fit for the semi-structured nature of the alert data.
 
-*   **Google Cloud Storage (GCS)**: Chosen for long-term archival storage due to its low cost and high durability. It is ideal for storing the immutable daily alert archives.
+*   **Google Cloud Storage (GCS)**: Chosen for long-term archival storage due to its low cost and high durability.
 
-*   **Vanilla JavaScript**: Selected for the frontend to create a lightweight, fast, and dependency-free application. This approach avoids the need for a complex build pipeline and demonstrates strong foundational web development skills.
+*   **Vanilla JavaScript**: Selected for the frontend to create a lightweight, fast, and dependency-free application. This approach avoids the need for a complex build pipeline.
 
 *   **GitHub Actions**: Used for CI/CD to automate the process of building, testing, and deploying the Go microservices to Cloud Run whenever code is pushed to the `main` branch.
 
@@ -147,5 +147,5 @@ flowchart TB
 1.  **Collection**: A Cloud Scheduler job triggers the `scraper-service`. The service fetches raw data from Waze, filters for police alerts, and stores them in Firestore.
 2.  **Archival**: A separate daily Cloud Scheduler job triggers the `archive-service`. It reads the previous day's data from Firestore and writes it as a permanent `.jsonl` file to a GCS bucket.
 3.  **Retrieval**: A user visits the dashboard and selects dates. The dashboard calls the `alerts-service` API.
-4.  **Serving**: The `alerts-service` intelligently serves the data, preferring the cheap and fast GCS archives when available and falling back to live Firestore queries for the most recent data.
+4.  **Serving**: The `alerts-service` serves the data, preferring GCS archives when available and falling back to live Firestore queries for the most recent data.
 5.  **Visualization**: The dashboard receives the data stream and renders it for the user to analyze.

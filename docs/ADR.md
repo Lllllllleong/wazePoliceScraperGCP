@@ -1,6 +1,6 @@
 # Architectural Decision Record (ADR)
 
-This document records the key architectural decisions made during the development of the Waze Police Scraper project. Each record describes a significant decision, its context, and its consequences, showcasing the engineering thought process behind the application's evolution.
+This document records the key architectural decisions made during the development of the Waze Police Scraper project. Each record describes a significant decision, its context, and its consequences.
 
 ---
 
@@ -19,8 +19,8 @@ We implemented a dedicated backend-for-frontend (BFF) service, the **`alerts-ser
 ### Consequences
 
 *   **Positive**:
-    *   **Enhanced Security**: Firestore credentials are no longer exposed to the browser. The API enforces a clear security boundary.
-    *   **Improved Performance**: The API handles complex, multi-date queries and server-side deduplication, sending a minimal, clean dataset to the client. This drastically reduces data transfer and improves frontend rendering speed.
+    *   **Security**: Firestore credentials are no longer exposed to the browser. The API enforces a clear security boundary.
+    *   **Performance**: The API handles complex, multi-date queries and server-side deduplication, sending a minimal dataset to the client. This reduces data transfer and improves frontend rendering speed.
     *   **Centralized Logic**: All data access rules, filtering logic, and data shaping are centralized in the Go service, making the system easier to maintain, test, and evolve.
     *   **Scalability**: The API layer provides a natural point for future enhancements like response caching, rate limiting, and advanced authentication.
 
@@ -35,7 +35,7 @@ We implemented a dedicated backend-for-frontend (BFF) service, the **`alerts-ser
 
 ### Context
 
-The application suffered from critical timezone-related bugs. Users in different timezones (e.g., Canberra, UTC+11) would select a date like "October 20th" but see data from the wrong 24-hour period. This was caused by the JavaScript frontend defaulting to the user's local timezone while the Go backend operated in UTC, creating a fundamental mismatch.
+The application had timezone-related bugs. Users in different timezones (e.g., Canberra, UTC+11) would select a date like "October 20th" but see data from the wrong 24-hour period. This was caused by the JavaScript frontend defaulting to the user's local timezone while the Go backend operated in UTC, creating a mismatch.
 
 ### Decision
 
@@ -75,9 +75,9 @@ We refactored the data loading mechanism to be on-demand and user-driven:
 ### Consequences
 
 *   **Positive**:
-    *   **Massive Performance Improvement**: The initial page load is now instant. Users only pay the data-loading cost for the specific days they are interested in.
-    *   **Network Efficiency**: Queries are targeted, and the total data transferred is significantly reduced.
-    *   **Enhanced User Experience**: The staged UI (select dates, then load) provides a clear, guided workflow. The multi-date picker is more flexible than a simple date range.
+    *   **Performance Improvement**: The initial page load is now instant. Users only pay the data-loading cost for the specific days they are interested in.
+    *   **Network Efficiency**: Queries are targeted, and the total data transferred is reduced.
+    *   **User Experience**: The staged UI (select dates, then load) provides a clear, guided workflow. The multi-date picker is more flexible than a simple date range.
 
 *   **Negative**:
     *   Users must now take an explicit action ("Load Data") to see information, slightly increasing the number of clicks required.
@@ -99,9 +99,9 @@ We replaced the initial implementation with Leaflet.js combined with the `Leafle
 ### Consequences
 
 *   **Positive**:
-    *   **Drastic Improvement in Temporal Accuracy**: The visualization is now a true and accurate representation of reality. An alert that was active for 4 hours now appears on the timeline for 4 hours, not 10 minutes.
-    *   **Richer Analysis**: Enables genuine insights into alert durations, overlaps, and patterns that were previously impossible to see.
-    *   **Superior User Experience**: The `TimelineSlider` provides smoother scrubbing, better controls, and more detailed popups, offering a more professional and interactive experience.
+    *   **Temporal Accuracy**: The visualization is now an accurate representation of reality. An alert that was active for 4 hours now appears on the timeline for 4 hours, not 10 minutes.
+    *   **Analysis**: Enables insights into alert durations, overlaps, and patterns that were previously impossible to see.
+    *   **User Experience**: The `TimelineSlider` provides smoother scrubbing, better controls, and more detailed popups.
 
 *   **Negative**:
     *   Required more complex data preparation to create the GeoJSON features with correct start and end times for each alert.
@@ -114,11 +114,11 @@ We replaced the initial implementation with Leaflet.js combined with the `Leafle
 
 ### Context
 
-The dashboard's filtering capabilities evolved significantly. They began as simple, hardcoded dropdowns, became fragmented across different parts of the UI, and lacked consistency.
+The dashboard's filtering capabilities evolved over time. They began as simple, hardcoded dropdowns, became fragmented across different parts of the UI, and lacked consistency.
 
 ### Decision
 
-We executed a series of refactors to create a single, powerful, and reusable filtering system:
+We executed a series of refactors to create a single, reusable filtering system:
 1.  **From Dropdowns to Tags**: Replaced single-choice dropdowns with a multi-select, tag-based UI. Users can now select multiple filter criteria (e.g., multiple subtypes or streets) and see them as removable tags.
 2.  **Dynamic Population**: Filter options are now dynamically populated based on the data loaded, ensuring that only relevant choices are presented.
 3.  **Default to Quality**: A "Verified Only" filter (alerts with >0 thumbs up) was added and enabled by default to immediately show users the most reliable data.
@@ -127,9 +127,9 @@ We executed a series of refactors to create a single, powerful, and reusable fil
 ### Consequences
 
 *   **Positive**:
-    *   **Consistent and Intuitive UX**: Users learn the powerful tag-based interface once and can use it across the entire application.
-    *   **Increased Filtering Power**: The multi-select capability allows for more complex and useful data exploration.
-    *   **Improved Code Quality**: The component-based architecture is more maintainable, reusable, and follows modern frontend design principles.
+    *   **Consistent UX**: Users learn the tag-based interface once and can use it across the entire application.
+    *   **Filtering Capability**: The multi-select capability allows for more complex and useful data exploration.
+    *   **Code Maintainability**: The component-based architecture is more maintainable and reusable.
     *   **Better User Guidance**: Defaulting to "Verified" alerts and providing dynamic options improves the out-of-the-box experience.
 
 *   **Negative**:
@@ -145,7 +145,7 @@ We executed a series of refactors to create a single, powerful, and reusable fil
 As the dataset grew, the `alerts-service` began to struggle with memory usage and latency. Loading a week's worth of data meant fetching thousands of documents from Firestore, unmarshaling them into Go structs, marshaling them back into a giant JSON array, and sending it to the client. This caused:
 *   **High Memory Spikes**: The service had to hold the entire response in memory.
 *   **Slow TTFB**: The client received nothing until the entire payload was ready.
-*   **Browser Freeze**: Parsing a massive JSON blob blocked the browser's main thread.
+*   **Browser Freeze**: Parsing a large JSON blob blocked the browser's main thread.
 
 ### Decision
 
@@ -180,7 +180,7 @@ We implemented **GZIP compression middleware** in the `alerts-service`. The serv
 ### Consequences
 
 *   **Positive**:
-    *   **Massive Bandwidth Reduction**: Compression reduced the payload size by approximately **88%**.
+    *   **Bandwidth Reduction**: Compression reduced the payload size by approximately **88%**.
     *   **Faster Downloads**: Smaller payloads mean faster data transfer times, especially on slower networks.
     *   **Cost Savings**: Reduced egress traffic from Cloud Run lowers infrastructure costs.
 
@@ -210,7 +210,7 @@ We migrated the entire production infrastructure to **Terraform**. All GCP resou
     *   **Reproducibility**: The entire environment can be provisioned or destroyed with a single command (`terraform apply` / `terraform destroy`).
     *   **Version Control**: Infrastructure changes are now tracked in Git, enabling code reviews, history, and rollbacks for infrastructure just like application code.
     *   **Automated Deployments**: Terraform is integrated into the CI/CD pipeline, ensuring that infrastructure changes are automatically validated and applied.
-    *   **Drift Detection**: We can easily detect if the actual cloud resources have deviated from the defined configuration.
+    *   **Drift Detection**: Can detect if the actual cloud resources have deviated from the defined configuration.
 
 *   **Negative**:
     *   **Learning Curve**: The team needed to learn HCL (HashiCorp Configuration Language) and Terraform concepts.
@@ -248,7 +248,6 @@ We implemented **Firebase Anonymous Authentication** combined with **per-user ra
     *   **Cost Protection**: Rate limiting prevents abuse and controls Cloud Run scaling costs.
     *   **Fair Usage**: Each user gets their own rate limit, ensuring fair access to the service.
     *   **User Identification**: Firebase provides stable UIDs for analytics and abuse monitoring without collecting personal information.
-    *   **Production-Ready Security**: Demonstrates real-world API protection patterns suitable for production applications.
 
 *   **Negative**:
     *   **Dependency**: Adds Firebase Auth as a critical dependency. Service outages would affect API access.
@@ -277,7 +276,7 @@ We implemented a strict **Service Identity Segmentation** strategy. We replaced 
 
 *   **Positive**:
     *   **Reduced Blast Radius**: If one service is compromised (e.g., the Scraper), the attacker cannot access data from other services or modify infrastructure.
-    *   **Enhanced Security Posture**: The application now operates with the absolute minimum permissions required to function.
+    *   **Minimum Permissions**: The application now operates with the minimum permissions required to function.
     *   **Auditability**: It is now clear which service is performing which actions in the audit logs.
 
 *   **Negative**:
@@ -298,7 +297,7 @@ The initial implementation of backend services created dependencies (Firestore c
 *   **Low Coverage**: Test coverage was limited to ~25% overall because most business logic was untestable.
 *   **No Error Path Testing**: Impossible to simulate error conditions (API failures, database errors) without breaking production services.
 
-The project had good architectural foundations (separate packages for `storage`, `waze`, `models`) but lacked the final abstraction layer needed for comprehensive testing.
+The project had architectural foundations (separate packages for `storage`, `waze`, `models`) but lacked the final abstraction layer needed for testing.
 
 ### Decision
 
@@ -343,12 +342,11 @@ We implemented **interface-based dependency injection** across all backend servi
 ### Consequences
 
 *   **Positive**:
-    *   **Testability Breakthrough**: Coverage increased from ~25% to ~60% overall (alerts-service: 72%, archive-service: 67%, scraper-service: 47%).
+    *   **Testability**: Coverage increased from ~25% to ~60% overall (alerts-service: 72%, archive-service: 67%, scraper-service: 47%).
     *   **Comprehensive Testing**: Can now test all code paths including error scenarios, edge cases, and concurrent operations.
     *   **Fast Tests**: Unit tests run in milliseconds without external service calls.
     *   **Maintainability**: Clear separation between interface contracts and implementations makes refactoring safer.
     *   **Documentation**: Interfaces serve as clear API contracts showing exactly what each component needs.
-    *   **Portfolio Value**: Demonstrates understanding of SOLID principles, particularly Dependency Inversion.
 
 *   **Negative**:
     *   **Initial Complexity**: Required refactoring all handlers and creating mock implementations (~500 lines of mock code).
@@ -377,7 +375,7 @@ The `storage` package had only 8.4% unit test coverage because most functions di
 *   **Easy to Skip**: No enforcement meant integration tests were often forgotten
 *   **No Deployment Gate**: Broken database interactions could reach production
 
-This created a critical gap: while handlers were well-tested with mocks, we had no automated verification that those mocks actually behaved like real Firestore.
+This created a gap: while handlers were tested with mocks, there was no automated verification that those mocks actually behaved like real Firestore.
 
 ### Decision
 
@@ -394,15 +392,27 @@ We implemented **automated integration testing with Firestore emulator in the CI
     }
     ```
 
-2.  **Emulator Setup in CI**: Added Firestore emulator to all GitHub Actions workflows:
+2.  **Emulator Setup in CI**: Added Firestore emulator to all GitHub Actions workflows using Firebase Tools:
     ```yaml
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v2
+    - name: Set up Node.js (for Firebase Tools)
+      uses: actions/setup-node@v4
       with:
-        install_components: 'cloud-firestore-emulator'
+        node-version: '20'
+    
+    - name: Install Firebase Tools
+      run: npm install -g firebase-tools
     
     - name: Start Firestore Emulator
-      run: gcloud emulators firestore start --host-port=localhost:8080 &
+      run: |
+        firebase emulators:start --only firestore --project demo-test &
+        # Wait for emulator to be ready
+        for i in {1..30}; do
+          if curl -s http://localhost:8080 > /dev/null 2>&1; then
+            echo "Firestore emulator is ready!"
+            exit 0
+          fi
+          sleep 1
+        done
     
     - name: Run Integration Tests
       env:
@@ -427,7 +437,14 @@ We implemented **automated integration testing with Firestore emulator in the CI
 
 5.  **Local Development Support**: Updated documentation to guide developers on running integration tests locally:
     ```bash
+    # Using Firebase Tools (recommended, matches CI/CD)
+    npm install -g firebase-tools
+    firebase emulators:start --only firestore
+    
+    # Alternative: Using gcloud SDK
     gcloud emulators firestore start --host-port=localhost:8080
+    
+    # Set environment variable and run tests
     export FIRESTORE_EMULATOR_HOST=localhost:8080
     go test -tags=integration -v ./internal/storage/...
     ```
@@ -435,12 +452,12 @@ We implemented **automated integration testing with Firestore emulator in the CI
 ### Consequences
 
 *   **Positive**:
-    *   **Real Database Verification**: Automated testing against actual Firestore behavior catches query bugs before deployment.
-    *   **Higher Confidence**: The 40% integration coverage complements unit tests, bringing total storage package coverage to ~48%.
-    *   **Caught Real Bugs**: Integration tests revealed issues with concurrent updates and Unicode handling that mocks missed.
+    *   **Database Verification**: Automated testing against actual Firestore behavior catches query bugs before deployment.
+    *   **Coverage**: The 40% integration coverage complements unit tests, bringing total storage package coverage to ~48%.
+    *   **Bug Detection**: Integration tests revealed issues with concurrent updates and Unicode handling that mocks missed.
     *   **No Production Dependencies**: Emulator tests run in isolation without GCP credentials or costs.
-    *   **Deployment Safety**: Both unit AND integration tests must pass before any service deploys.
-    *   **Documentation Value**: Integration tests serve as executable documentation of Firestore usage patterns.
+    *   **Deployment Safety**: Both unit and integration tests must pass before any service deploys.
+    *   **Documentation**: Integration tests serve as executable documentation of Firestore usage patterns.
     *   **Fast Feedback**: Emulator starts in ~10 seconds; full integration suite runs in ~30 seconds.
 
 *   **Negative**:
@@ -451,5 +468,5 @@ We implemented **automated integration testing with Firestore emulator in the CI
 
 ---
 
-**Last Updated**: January 10, 2026  
+**Last Updated**: January 11, 2026  
 **Document Maintainer**: Project Team
