@@ -1,6 +1,6 @@
 # Testing Guide
 
-> **TL;DR:** This project maintains comprehensive test coverage across backend (Go) and frontend (JavaScript). Run `go test ./...` for backend, `npm test` for frontend. All tests run automatically in CI/CD.
+> **TL;DR:** This project has test coverage across backend (Go) and frontend (JavaScript). Run `go test ./...` for backend, `npm test` for frontend. All tests run automatically in CI/CD.
 
 
 ---
@@ -17,6 +17,10 @@
 8. [Integration Testing](#integration-testing)
 9. [CI/CD Integration](#cicd-integration)
 10. [Best Practices](#best-practices)
+11. [Test Types Summary](#test-types-summary)
+12. [Coverage Goals & Roadmap](#coverage-goals--roadmap)
+13. [Additional Resources](#additional-resources)
+14. [FAQ](#faq)
 
 ---
 
@@ -40,7 +44,13 @@ go test -v ./cmd/alerts-service/
 go test -v ./cmd/archive-service/
 
 # Run integration tests (requires Firestore emulator)
+# On Unix/Mac:
 export FIRESTORE_EMULATOR_HOST=localhost:8080
+# On Windows (PowerShell):
+$env:FIRESTORE_EMULATOR_HOST="localhost:8080"
+# On Windows (CMD):
+set FIRESTORE_EMULATOR_HOST=localhost:8080
+
 go test -tags=integration -v ./internal/storage/...
 ```
 
@@ -148,11 +158,24 @@ go test -short ./...
 Integration tests require the Firestore emulator:
 
 ```bash
-# Terminal 1: Start Firestore emulator
+# Option 1: Firebase Tools (recommended, same as CI/CD)
+# Install: npm install -g firebase-tools
+# Terminal 1: Start emulator from project root
+firebase emulators:start --only firestore
+
+# Option 2: Google Cloud SDK (alternative)
+# Install: gcloud components install cloud-firestore-emulator
+# Terminal 1: Start emulator
 gcloud emulators firestore start --host-port=localhost:8080
 
 # Terminal 2: Run integration tests
+# On Unix/Mac:
 export FIRESTORE_EMULATOR_HOST=localhost:8080
+# On Windows (PowerShell):
+$env:FIRESTORE_EMULATOR_HOST="localhost:8080"
+# On Windows (CMD):
+set FIRESTORE_EMULATOR_HOST=localhost:8080
+
 go test -tags=integration -v ./internal/storage/...
 
 # Run specific integration test
@@ -199,14 +222,14 @@ npm test -- filters.test.js
 
 | Service/Package | Unit Coverage | Integration | Total | Status |
 |-----------------|--------------|-------------|-------|--------|
-| **alerts-service** | 72.2% | +15% | ~87% | ✅ Excellent |
-| **scraper-service** | 47.3% | +15% | ~62% | ✅ Good |
-| **archive-service** | 67.4% | +15% | ~82% | ✅ Good |
+| **alerts-service** | 72.2% | ~15% | ~87% | ✅ Excellent |
+| **scraper-service** | 47.3% | ~15% | ~62% | ✅ Good |
+| **archive-service** | 67.4% | ~15% | ~82% | ✅ Good |
 | **internal/waze** | 47.0% | - | 47% | ✅ Good |
-| **internal/storage** | 8.4% | +40% | ~48% | ⚠️ Unit tests limited |
+| **internal/storage** | 8.4% | ~40% | ~48% | ⚠️ Unit tests limited |
 | **internal/models** | [no statements] | - | N/A | ✅ Pure data |
 
-**Note:** Storage package has low unit test coverage because most functions interact with Firestore. Integration tests provide comprehensive coverage.
+**Note:** Storage package has low unit test coverage because most functions interact with Firestore. Integration tests provide full coverage of these operations.
 
 ### Frontend Coverage (JavaScript)
 
@@ -537,14 +560,20 @@ func TestHandlerFetchError(t *testing.T) {
 Integration tests use the Firestore emulator for real database operations without GCP costs:
 
 ```bash
-# Install (one-time)
-gcloud components install cloud-firestore-emulator
+# Install Firebase Tools (one-time)
+npm install -g firebase-tools
 
-# Start emulator
-gcloud emulators firestore start --host-port=localhost:8080
+# Start emulator (from project root)
+firebase emulators:start --only firestore
 
 # In another terminal, run tests
+# On Unix/Mac:
 export FIRESTORE_EMULATOR_HOST=localhost:8080
+# On Windows (PowerShell):
+$env:FIRESTORE_EMULATOR_HOST="localhost:8080"
+# On Windows (CMD):
+set FIRESTORE_EMULATOR_HOST=localhost:8080
+
 go test -tags=integration -v ./internal/storage/...
 ```
 
@@ -666,16 +695,25 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
       
-      # Setup Firestore emulator
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+      # Setup Firestore emulator using Firebase Tools
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          install_components: 'cloud-firestore-emulator'
+          node-version: '20'
+      
+      - name: Install Firebase Tools
+        run: npm install -g firebase-tools
       
       - name: Start Firestore Emulator
         run: |
-          gcloud emulators firestore start --host-port=localhost:8080 &
-          sleep 10
+          firebase emulators:start --only firestore --project demo-test &
+          # Wait for emulator to be ready
+          for i in {1..30}; do
+            if curl -s http://localhost:8080 > /dev/null 2>&1; then
+              exit 0
+            fi
+            sleep 1
+          done
       
       # Run integration tests
       - name: Run Integration Tests
@@ -857,11 +895,11 @@ jobs:
 
 ### Current Testing Strategy
 
-✅ **Unit Tests:** Comprehensive coverage of business logic  
+✅ **Unit Tests:** Full coverage of business logic  
 ✅ **Integration Tests:** Database operations with Firestore emulator  
-⚪ **E2E Tests:** Not implemented (optional for portfolio project)
+⚪ **E2E Tests:** Not implemented (optional)
 
-This testing strategy provides strong confidence in code quality while maintaining fast feedback cycles and reasonable maintenance burden.
+This testing strategy provides confidence in code quality while maintaining fast feedback cycles.
 
 ---
 
@@ -887,9 +925,9 @@ This testing strategy provides strong confidence in code quality while maintaini
 
 ### Coverage Philosophy
 
-**Quality Over Quantity:** We prioritize testing business logic and critical paths over achieving arbitrary coverage percentages. Some code (like pure data models and framework glue) doesn't need extensive testing.
+**Quality Over Quantity:** Tests prioritize business logic and critical paths over achieving arbitrary coverage percentages. Some code (like pure data models and framework glue) doesn't need extensive testing.
 
-**Pragmatic Approach:** Coverage targets balance thoroughness with development velocity. All critical paths are tested; non-critical edge cases are evaluated on a case-by-case basis.
+**Pragmatic Approach:** Coverage targets balance thoroughness with development velocity. Critical paths are tested; edge cases are evaluated case-by-case.
 
 ---
 
@@ -904,7 +942,8 @@ This testing strategy provides strong confidence in code quality while maintaini
 - [Go Testing Package](https://pkg.go.dev/testing) - Official Go testing docs
 - [Vitest Documentation](https://vitest.dev/) - Frontend testing framework
 - [Table-Driven Tests in Go](https://dave.cheney.net/2019/05/07/prefer-table-driven-tests) - Best practices
-- [Google Cloud Firestore Emulator](https://cloud.google.com/firestore/docs/emulator) - Local testing
+- [Firebase Tools](https://firebase.google.com/docs/cli) - Firebase CLI including Firestore emulator
+- [Google Cloud Firestore Emulator](https://cloud.google.com/firestore/docs/emulator) - Alternative emulator setup
 
 ### Tools
 - [golangci-lint](https://golangci-lint.run/) - Go linting
@@ -916,7 +955,7 @@ This testing strategy provides strong confidence in code quality while maintaini
 ## FAQ
 
 **Q: Why is storage package unit coverage only 8.4%?**  
-A: Most storage functions interact directly with Firestore, which requires integration tests. The 40% integration coverage provides comprehensive testing of database operations.
+A: Most storage functions interact directly with Firestore, which requires integration tests. The 40% integration coverage provides full testing of database operations.
 
 **Q: Why doesn't app.js have tests?**  
 A: Business logic has been extracted into separate modules that are fully tested. app.js contains only DOM/Leaflet integration code (framework glue), which provides minimal testing value.
@@ -944,6 +983,6 @@ npm test -- filters.test.js
 
 ---
 
-**Last Updated:** January 10, 2026  
+**Last Updated:** January 11, 2026  
 **Maintained by:** Project Team  
 **Coverage Dashboard:** [Codecov](https://codecov.io/gh/Lllllllleong/wazePoliceScraperGCP)
