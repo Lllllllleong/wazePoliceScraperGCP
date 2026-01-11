@@ -25,13 +25,6 @@ window.FIREBASE_CONFIG = {
 window.USE_FIREBASE_EMULATOR = isLocalhost;
 window.FIREBASE_EMULATOR_HOST = "localhost:9099";
 
-// Environment logging
-if (isLocalhost) {
-    console.log('🔧 Development Mode: localhost:8080 + Firebase Emulator');
-} else {
-    console.log('🌐 Production Mode: Cloud Run + Firebase Auth');
-}
-
 // Map configuration
 window.MAP_CONFIG = {
     center: [-34.5, 150.0], // Sydney-Canberra midpoint

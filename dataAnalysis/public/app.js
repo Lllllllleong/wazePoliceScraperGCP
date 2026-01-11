@@ -454,7 +454,6 @@ async function loadAlertsFromAPI() {
         }
 
         allAlerts = Array.from(alertsMap.values());
-        console.log(`📦 Processed ${allAlerts.length} unique alerts.`);
         totalAlertsCounter.textContent = allAlerts.length;
 
     } catch (error) {
@@ -664,8 +663,6 @@ function onHumeHighwayFilterChange(e) {
         // Clear existing street selections and add Hume streets
         selectedStreets = [...humeStreets];
         updateStreetTags();
-
-        console.log(`Hume Highway filter activated. Found ${humeStreets.length} streets:`, humeStreets);
     } else {
         // Clear street filters when unchecked
         selectedStreets = [];
@@ -763,8 +760,6 @@ function resetDashboard() {
     // Clear alert list
     const alertList = document.getElementById('alert-list');
     alertList.innerHTML = '<p class="loading-message">👋 Dashboard reset. Please select dates and click "Load Data" to begin.</p>';
-
-    console.log('✅ Dashboard reset complete');
 }
 
 // Event listeners
