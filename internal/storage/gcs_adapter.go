@@ -3,6 +3,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"io"
 
 	gcs "cloud.google.com/go/storage"
@@ -67,14 +68,10 @@ var _ GCSObjectHandle = (*GCSObjectHandleAdapter)(nil)
 // IsObjectNotExist checks if an error indicates that a GCS object does not exist.
 // This works for both the real GCS error and our mock error.
 func IsObjectNotExist(err error) bool {
-	if err == gcs.ErrObjectNotExist {
+	if errors.Is(err, gcs.ErrObjectNotExist) {
 		return true
 	}
-	if err == ErrObjectNotExist {
-		return true
-	}
-	// Check error message as fallback
-	if err != nil && err.Error() == "storage: object doesn't exist" {
+	if errors.Is(err, ErrObjectNotExist) {
 		return true
 	}
 	return false
