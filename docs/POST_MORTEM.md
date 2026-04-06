@@ -1,15 +1,18 @@
 # Post-Mortem: Waze Police Scraper GCP
 
-**Project lifespan:** September 26, 2025 – March 16, 2026
-**Written:** April 2026
+**Data collection:** September 26, 2025 – March 16, 2026
+
+**Decommissioned:** April 6, 2026
+
+**Written:** April 6, 2026
 
 ---
 
 ## What the Project Was
 
-A cloud-native pipeline that scraped police alert data from the Waze live traffic API across the Sydney–Canberra corridor (Hume Highway), stored it in Firestore, archived it daily to GCS, and served it to a JavaScript dashboard for visualization and analysis. The project started from curiosity during regular drives between Sydney and Canberra.
+A pipeline that scraped police alert data from the Waze live traffic API across the Sydney–Canberra corridor (Hume Highway), stored it in Firestore, archived it daily to GCS, and served it via a JavaScript dashboard. Started from curiosity during regular drives between Sydney and Canberra.
 
-The system ran three microservices on Cloud Run: a scraper (triggered every minute by Cloud Scheduler), an archive service (triggered daily), and an alerts API (public HTTPS endpoint for the frontend). Infrastructure was managed entirely with Terraform, and all services had CI/CD pipelines via GitHub Actions.
+The system ran three microservices on Cloud Run: a scraper (triggered every minute by Cloud Scheduler), an archive service (triggered daily), and an alerts API (public HTTPS endpoint for the frontend). Infrastructure was defined in Terraform; all services had CI/CD pipelines via GitHub Actions.
 
 ---
 
@@ -36,9 +39,9 @@ The system ran three microservices on Cloud Run: a scraper (triggered every minu
 
 **Terraform for infrastructure.** Having all GCP resources defined in Terraform made the decommission clean — removing modules from `main.tf` was sufficient to express the desired end state. Dependency ordering (schedulers before services) was handled automatically.
 
-**CI/CD pipelines.** The GitHub Actions workflows gave high confidence in every deployment. The reusable workflow pattern kept the three service pipelines consistent. Coverage thresholds caught regressions early.
+**CI/CD pipelines.** The reusable workflow pattern kept the three service pipelines consistent. Coverage thresholds caught regressions early.
 
-**Firebase Anonymous Authentication + rate limiting.** The alerts API was never directly abused despite being publicly discoverable. Anon auth with per-user token-bucket rate limiting was a lightweight but effective protection at this scale.
+**Firebase Anonymous Authentication + rate limiting.** The alerts API was never abused despite being publicly discoverable. Anon auth with per-user token-bucket rate limiting held up fine at this scale.
 
 **Serverless economics.** The entire system ran at near-zero cost during active collection (~$5–10/month). After decommission, the remaining infrastructure (alerts API on Cloud Run, Firebase Hosting, Firestore, GCS) costs effectively nothing.
 
