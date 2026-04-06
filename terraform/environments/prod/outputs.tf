@@ -52,86 +52,18 @@ output "archive_bucket_url" {
 # CLOUD RUN SERVICE OUTPUTS
 # =============================================================================
 
-output "scraper_service_url" {
-  description = "URL of the scraper service"
-  value       = module.scraper_service.service_url
-}
-
 output "alerts_service_url" {
   description = "URL of the alerts service (public API)"
   value       = module.alerts_service.service_url
-}
-
-output "archive_service_url" {
-  description = "URL of the archive service"
-  value       = module.archive_service.service_url
-}
-
-output "all_service_urls" {
-  description = "Map of all Cloud Run service URLs"
-  value = {
-    scraper = module.scraper_service.service_url
-    alerts  = module.alerts_service.service_url
-    archive = module.archive_service.service_url
-  }
-}
-
-# =============================================================================
-# CLOUD SCHEDULER OUTPUTS
-# =============================================================================
-
-output "scraper_scheduler_name" {
-  description = "Name of the scraper scheduler job"
-  value       = module.scraper_scheduler.job_name
-}
-
-output "archive_scheduler_name" {
-  description = "Name of the archive scheduler job"
-  value       = module.archive_scheduler.job_name
-}
-
-output "scheduler_jobs" {
-  description = "Map of all Cloud Scheduler jobs with their schedules"
-  value = {
-    scraper = {
-      name     = module.scraper_scheduler.job_name
-      schedule = module.scraper_scheduler.schedule
-      state    = module.scraper_scheduler.state
-    }
-    archive = {
-      name     = module.archive_scheduler.job_name
-      schedule = module.archive_scheduler.schedule
-      state    = module.archive_scheduler.state
-    }
-  }
 }
 
 # =============================================================================
 # ARTIFACT REGISTRY OUTPUTS
 # =============================================================================
 
-output "scraper_registry_url" {
-  description = "Scraper service registry URL"
-  value       = module.scraper_registry.repository_url
-}
-
 output "alerts_registry_url" {
   description = "Alerts service registry URL"
   value       = module.alerts_registry.repository_url
-}
-
-output "archive_registry_url" {
-  description = "Archive service registry URL"
-  value       = module.archive_registry.repository_url
-}
-
-output "all_registry_urls" {
-  description = "Map of all Artifact Registry repository URLs"
-  value = {
-    scraper = module.scraper_registry.repository_url
-    alerts  = module.alerts_registry.repository_url
-    archive = module.archive_registry.repository_url
-  }
 }
 
 # =============================================================================
