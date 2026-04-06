@@ -32,6 +32,7 @@ let tokenRefreshInterval = null;
 
 // Constants for date range
 const MIN_DATE = '2025-09-26';
+const MAX_DATE = '2026-03-16'; // Last date with data — collection stopped after this date
 const MAX_SELECTABLE_DATES = 7; // Maximum number of dates that can be selected (reduced due to large data size)
 
 // Helper function to format dates as dd-mm-yyyy HH:MM:SS
@@ -213,14 +214,11 @@ function initMap() {
 
 // Initialize Flatpickr date picker
 function initDatePicker() {
-    // Determine the max selectable date (current day)
-    const today = new Date();
-
     flatpickrInstance = flatpickr('#date-picker', {
         mode: 'multiple',
         dateFormat: 'Y-m-d',
         minDate: MIN_DATE,
-        maxDate: today, 
+        maxDate: MAX_DATE,
         inline: true,
         disable: [
             '2025-10-03', // Hardcoded unavailable date
@@ -295,7 +293,7 @@ async function loadAlertsForSelectedDates() {
         await loadAlertsFromAPI();
 
         if (allAlerts.length === 0) {
-            alertList.innerHTML = '<p class="loading-message" style="color: var(--warning-color);">⚠️ No alerts found for selected dates.</p>';
+            alertList.innerHTML = '<p class="loading-message" style="color: var(--warning-color);">⚠️ No data available for the selected dates. Data is available from Sep 26, 2025 to Mar 16, 2026.</p>';
             loadingStatus.style.display = 'none';
             // Keep button disabled even on empty results - user must reset to try different dates
             loadBtn.disabled = true;
