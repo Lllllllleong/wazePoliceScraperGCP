@@ -4,6 +4,31 @@ This document provides an overview of the Waze Police Scraper project's architec
 
 ---
 
+## Current State (Post-Decommission, April 2026)
+
+Data collection stopped on March 16, 2026 after the Waze API began returning 403 errors permanently (~January 10, 2026). The scraper and archive services have been decommissioned. Only the alerts service and frontend remain live, serving the historical dataset.
+
+```mermaid
+flowchart LR
+    classDef compute fill:#e1f5fe,stroke:#01579b,stroke-width:2px,color:#01579b;
+    classDef storage fill:#fff8e1,stroke:#ff8f00,stroke-width:2px,color:#8d6e63;
+    classDef ui fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px,color:#1b5e20;
+
+    Dashboard[Data Analysis Dashboard<br/>JavaScript + Leaflet]:::ui
+    AlertsAPI(Alerts API Service<br/>Go on Cloud Run):::compute
+    GCS[(Cloud Storage<br/>JSONL Archives)]:::storage
+    Firestore[(Firestore<br/>NoSQL Database)]:::storage
+
+    Dashboard -->|GET /police_alerts<br/>+ Firebase Auth Token| AlertsAPI
+    GCS -.->|Historical Data| AlertsAPI
+    Firestore -.->|Historical Data| AlertsAPI
+    AlertsAPI -.->|Stream JSONL Response| Dashboard
+```
+
+The original full architecture (scraper pipeline, archive pipeline) is documented below for reference.
+
+---
+
 ## 1. High-Level Overview
 
 This project is a cloud-native, event-driven system designed to scrape, store, and visualize police alert data from Waze. It follows a microservices architecture, with distinct services for data collection, data serving, and data archiving. The entire system is deployed on Google Cloud Platform and leverages serverless technologies for scalability and cost-efficiency.
