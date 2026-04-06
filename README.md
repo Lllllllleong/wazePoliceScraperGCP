@@ -11,6 +11,14 @@ A system for scraping, storing, and analyzing police alert data from Waze's live
 
 ---
 
+## Project Status: Historical
+
+> **Data collection stopped on March 16, 2026.** The Waze API began returning 403 errors on all requests around January 10, 2026, permanently breaking the scraper. All collected data (September 26, 2025 – March 16, 2026) has been archived to GCS.
+>
+> The scraper and archive services have been decommissioned. The dashboard and alerts API remain live and serve the historical dataset. See [docs/POST_MORTEM.md](./docs/POST_MORTEM.md) for the full write-up.
+
+---
+
 ## Live Demo
 
 A live version of the data analysis dashboard is deployed and accessible here:
