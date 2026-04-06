@@ -13,7 +13,7 @@ A system for scraping, storing, and analyzing police alert data from Waze's live
 
 ## Project Status: Historical
 
-> **Data collection stopped on March 16, 2026.** The Waze API began returning 403 errors on all requests around January 10, 2026, permanently breaking the scraper. All collected data (September 26, 2025 – March 16, 2026) has been archived to GCS.
+> **Data collection stopped on March 16, 2026.** The Waze API began returning 403 errors on all requests around March 16, 2026, permanently breaking the scraper. All collected data (September 26, 2025 – March 16, 2026) has been archived to GCS.
 >
 > The scraper and archive services have been decommissioned. The dashboard and alerts API remain live and serve the historical dataset. See [docs/POST_MORTEM.md](./docs/POST_MORTEM.md) for the full write-up.
 
@@ -32,15 +32,12 @@ A live version of the data analysis dashboard is deployed and accessible here:
 
 ## Core Features
 
-*   **Automated Data Scraping**: Scheduled Go service fetches and stores police alert data.
-*   **Map Visualization**: Frontend dashboard built with vanilla JavaScript and Leaflet.js displays alerts on a map.
-*   **Timeline View**: Visualizes the lifespan of each alert.
-*   **Filtering**: Tag-based UI filters data by subtypes and streets.
-*   **Microservices Architecture**: Separate services for scraping, serving data, and archiving.
-*   **API Security**: Firebase Anonymous Authentication with per-user rate limiting.
-*   **Infrastructure as Code**: Terraform implementation for infrastructure deployment.
-*   **CI/CD**: Automated build, test, and deployment pipelines using GitHub Actions.
-*   **Serverless**: Built on Cloud Run and Firestore.
+*   **Map + Timeline**: Leaflet.js map and alert lifespan timeline view.
+*   **Filtering**: Filter by subtype and street.
+*   **API**: Firebase Anonymous Auth, per-user rate limiting, gzip JSONL responses.
+*   **IaC**: Terraform for all GCP infrastructure.
+*   **CI/CD**: GitHub Actions — lint, test, Docker build, push, deploy.
+*   **Serverless**: Cloud Run + Firestore.
 
 ---
 
@@ -59,21 +56,17 @@ A live version of the data analysis dashboard is deployed and accessible here:
 
 ## Architecture Overview
 
-The system consists of microservices deployed on Google Cloud Run. Resources are consumed only when services are active.
+*   **`scraper-service`**: Cloud Run job triggered by Cloud Scheduler. Fetches data from Waze, deduplicates by UUID, writes to Firestore.
+*   **`alerts-service`**: HTTP API for the frontend. Checks GCS archives first, falls back to Firestore. Streams gzip JSONL.
+*   **`archive-service`**: Daily Cloud Run job. Moves the previous day's Firestore data to GCS as `archives/YYYY-MM-DD.jsonl.gz`.
 
-*   **`scraper-service`**: Cloud Run job triggered by Cloud Scheduler. Fetches data from Waze, filters and deduplicates, then writes/updates alert data to Firestore.
-*   **`alerts-service`**: Cloud Run API serves alert data to the frontend. Includes Firebase Authentication and rate limiting. Fetches from GCS archives or Firestore, streaming GZIP-compressed JSONL.
-*   **`archive-service`**: Cloud Run job triggered daily by Cloud Scheduler. Moves older data from Firestore to Google Cloud Storage.
-
-For a detailed breakdown of the system design, data flow, and technology rationale, please see the **[Architecture Document](./docs/ARCHITECTURE.md)**.
+See **[Architecture Document](./docs/ARCHITECTURE.md)** for details.
 
 ---
 
 ## Why I Built This
 
-This project started from curiosity during drives between Sydney and Canberra.
-
-Technical decisions are documented in the [ADR (Architectural Decision Record)](./docs/ADR.md).
+Curiosity during drives between Sydney and Canberra. Technical decisions are in the [ADR](./docs/ADR.md).
 
 ---
 
@@ -88,6 +81,8 @@ Technical decisions are documented in the [ADR (Architectural Decision Record)](
 ---
 
 ## Getting Started (Local Development)
+
+> **Note**: The scraper and archive services have been decommissioned and are no longer deployed. The steps below are preserved for reference — only the alerts service and frontend are actively running.
 
 ### Prerequisites
 *   Go (1.24+)
@@ -129,15 +124,22 @@ gcloud auth application-default login
 gcloud config set project YOUR_GCP_PROJECT_ID
 ```
 
-### 4. Run a Backend Service (e.g., Scraper)
+### 4. Run a Backend Service
+
+**Alerts service** (still active):
 ```bash
 # Load environment variables (on Linux/macOS)
 export $(cat .env | xargs)
 
-# Run the scraper service
-go run ./cmd/scraper-service/main.go
+go run ./cmd/alerts-service/main.go
 ```
 The service will start on `http://localhost:8080`.
+
+**Scraper / archive services** (decommissioned — for reference only):
+```bash
+go run ./cmd/scraper-service/main.go
+go run ./cmd/archive-service/main.go
+```
 
 ### 5. Run the Frontend Dashboard
 ```bash
@@ -177,7 +179,7 @@ npm run test:coverage   # With coverage report
 
 | Component | Coverage |
 |-----------|----------|
-| Backend (Go) | ~60% |
+| Backend (Go) | ~15% (target: 60%+) |
 | Frontend (JS) | 100% |
 | Integration Tests | Firestore emulator |
 
@@ -297,6 +299,22 @@ Access via [GCP Monitoring Console](https://console.cloud.google.com/monitoring)
 
 Based on typical usage patterns for this system:
 
+**Post-decommission** (current state — alerts service + frontend only):
+
+| Service                | Usage                          | Estimated Monthly Cost |
+|------------------------|--------------------------------|------------------------|
+| **Cloud Run**          | 1 service (alerts), low traffic | $0 - $1               |
+| **Firestore**          | Read-only, low traffic         | ~$0                    |
+| **Cloud Storage**      | ~10GB static archives          | ~$0.20                 |
+| **Artifact Registry**  | Container image storage        | $0.10 - $0.50          |
+| **Firebase Hosting**   | Static site, minimal bandwidth | Free tier              |
+| **Networking**         | Egress traffic                 | $0 - $1                |
+
+**Total (current)**: ~**$0.30 - $2/month**
+
+<details>
+<summary>Original (when fully operational)</summary>
+
 | Service                | Usage                          | Estimated Monthly Cost |
 |------------------------|--------------------------------|------------------------|
 | **Cloud Run**          | 3 services, minimal traffic    | $0 - $5                |
@@ -308,19 +326,15 @@ Based on typical usage patterns for this system:
 | **BigQuery**           | (Optional) Minimal usage       | $0 - $1                |
 | **Networking**         | Egress traffic                 | $1 - $5                |
 
-**Total Estimated Cost**: **$2 - $25/month**
+**Total**: $2 - $25/month. Assumes scraper every 5-10 minutes, 30-day Firestore retention, low dashboard traffic.
 
-### Cost Optimization Tips
-*   Use Cloud Run's **minimum instances = 0** for auto-scaling to zero
-*   Set up **budget alerts** in GCP Console
-*   Archive old data to **Coldline Storage** ($0.004/GB/month)
-*   Enable **Firestore deletion protection** but regularly clean up old documents
-*   Monitor costs via [GCP Billing Dashboard](https://console.cloud.google.com/billing)
+</details>
 
-**Note**: Costs depend heavily on scraping frequency, data retention, and API traffic. The above estimates assume:
-- Scraper running every 5-10 minutes
-- 30-day data retention in Firestore
-- Low to moderate dashboard usage
+### Cost Tips
+*   Cloud Run minimum instances = 0 (scale to zero)
+*   Set budget alerts in GCP Console
+*   Coldline Storage for archives ($0.004/GB/month)
+*   Monitor via [GCP Billing Dashboard](https://console.cloud.google.com/billing)
 
 ---
 
@@ -346,6 +360,8 @@ Authorization: Bearer <FIREBASE_ID_TOKEN>
 dates=2026-01-08,2026-01-09
 ```
 
+Maximum 7 dates per request.
+
 **Example Request**:
 ```
 GET /police_alerts?dates=2026-01-08,2026-01-09
@@ -357,7 +373,7 @@ GET /police_alerts?dates=2026-01-08,2026-01-09
 {"UUID":"...","Type":"POLICE","Subtype":"POLICE_HIDING","PublishTime":"2026-01-08T11:45:00Z","ExpireTime":"2026-01-08T12:15:00Z",...}
 ```
 
-**Note**: Field names use Go struct field names (e.g., `UUID`, `PublishTime`, `ExpireTime`) as the struct doesn't define JSON tags. See [Data Schema](#data-schema) section below for complete field list.
+**Note**: No JSON tags — field names in responses match Go struct names. See [Data Schema](#data-schema) for the full list.
 
 **Rate Limiting**: 30 requests per minute per authenticated user
 
@@ -401,7 +417,7 @@ type PoliceAlert struct {
 }
 ```
 
-**Note on JSON Serialization**: The `PoliceAlert` struct does not define JSON tags, so when marshaled to JSON (e.g., in API responses), it uses the default Go struct field names (e.g., `UUID`, `PublishTime`, `ExpireTime`) rather than custom JSON names.
+**Note**: No JSON tags on `PoliceAlert`, so field names in API responses match Go struct names (`UUID`, `PublishTime`, `ExpireTime`, etc.).
 
 ### Alert Subtypes
 
@@ -417,7 +433,7 @@ Archived alerts are stored as **JSONL** (JSON Lines) files in Cloud Storage:
 
 **File Path**: `gs://BUCKET_NAME/archives/YYYY-MM-DD.jsonl.gz`
 
-**Format**: One JSON object per line, GZIP compressed
+**Format**: One JSON object per line, stored uncompressed. The `.gz` extension is a misnomer — gzip compression only applies to the HTTP response from the alerts service, not the stored file.
 
 ---
 
@@ -470,13 +486,12 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Deployment
 
-### Automated Deployment (Recommended)
+### Automated Deployment
 
-GitHub Actions workflows in `.github/workflows/` automatically:
-1.  Lint and test Go code
-2.  Build Docker container
-3.  Push to Google Artifact Registry
-4.  Deploy to Google Cloud Run
+GitHub Actions workflows in `.github/workflows/` handle:
+1.  Lint and test
+2.  Docker build and push to Artifact Registry
+3.  Deploy to Cloud Run
 
 ### Manual Deployment with Terraform
 
