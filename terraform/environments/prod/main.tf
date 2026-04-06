@@ -83,50 +83,6 @@ module "archive_bucket" {
 # CLOUD RUN SERVICES
 # =============================================================================
 
-# Scraper Service - Fetches data from Waze API
-module "scraper_service" {
-  source = "../../modules/cloud-run"
-
-  service_name          = "scraper-service"
-  project_id            = var.project_id
-  location              = var.region
-  container_image       = var.scraper_image
-  service_account_email = module.scraper_service_account.service_account_email
-
-  # Resource limits
-  cpu_limit    = "1"
-  memory_limit = "512Mi"
-  timeout      = "300s"
-
-  # Scaling configuration
-  min_instance_count               = 0
-  max_instance_count               = 1
-  max_instance_request_concurrency = 80
-
-  # Metadata (matches exported config)
-  client         = "gcloud"
-  client_version = ""
-  launch_stage   = "GA"
-
-  env_vars = merge(
-    local.common_env_vars,
-    {
-      # Scraper-specific variables can be added here
-    }
-  )
-
-  labels = merge(
-    local.common_labels,
-    {
-      service = "scraper"
-      tier    = "backend"
-    }
-  )
-
-  # Scraper is triggered by Cloud Scheduler, not public
-  allow_unauthenticated = false
-}
-
 # Alerts Service - API for frontend dashboard
 module "alerts_service" {
   source = "../../modules/cloud-run"
@@ -164,120 +120,9 @@ module "alerts_service" {
   allow_unauthenticated = true
 }
 
-# Archive Service - Moves old data to GCS
-module "archive_service" {
-  source = "../../modules/cloud-run"
-
-  service_name          = "archive-service"
-  project_id            = var.project_id
-  location              = var.region
-  container_image       = var.archive_image
-  service_account_email = module.archive_service_account.service_account_email
-
-  cpu_limit    = "1"
-  memory_limit = "512Mi"
-  timeout      = "600s"
-
-  max_instance_count               = 1
-  max_instance_request_concurrency = 1
-
-  env_vars = local.common_env_vars
-
-  labels = merge(
-    local.common_labels,
-    {
-      service = "archive"
-    }
-  )
-
-  # Archive is triggered by Cloud Scheduler, not public
-  allow_unauthenticated = false
-}
-
-# =============================================================================
-# CLOUD SCHEDULER JOBS
-# =============================================================================
-
-# Scraper job - Triggers scraper service every minute
-module "scraper_scheduler" {
-  source = "../../modules/scheduler"
-
-  name        = "call-scraper"
-  description = "Triggers the scraper service every minute."
-  schedule    = "* * * * *"
-  time_zone   = "UTC"
-  region      = var.region
-
-  http_method = "GET"
-  target_uri  = module.scraper_service.service_url
-
-  # OIDC auth required - scraper service requires authentication
-  use_oidc_auth         = true
-  service_account_email = module.scraper_service_account.service_account_email
-  oidc_audience         = module.scraper_service.service_url
-
-  attempt_deadline = "180s"
-
-  # Retry configuration
-  max_retry_duration   = "0s"
-  min_backoff_duration = "5s"
-  max_backoff_duration = "3600s"
-  max_doublings        = 5
-}
-
-# Archive job - Triggers archive service daily at 00:05 Australia/Canberra
-module "archive_scheduler" {
-  source = "../../modules/scheduler"
-
-  name        = "archive-police-alerts"
-  description = "Triggers the archive service daily to archive previous day's data."
-  schedule    = "5 0 * * *"
-  time_zone   = "Australia/Canberra"
-  region      = var.region
-
-  http_method = "POST"
-  target_uri  = module.archive_service.service_url
-
-  # OIDC auth required - archive service requires authentication
-  use_oidc_auth         = true
-  service_account_email = module.archive_service_account.service_account_email
-  oidc_audience         = module.archive_service.service_url
-
-  attempt_deadline = "180s"
-
-  # Retry configuration - Allow up to 5 retry attempts for daily archive job
-  max_retry_duration   = "360s"
-  min_backoff_duration = "5s"
-  max_backoff_duration = "80s"
-  max_doublings        = 5
-}
-
 # =============================================================================
 # ARTIFACT REGISTRY REPOSITORIES
 # =============================================================================
-
-# Scraper service repository
-module "scraper_registry" {
-  source = "../../modules/artifact-registry"
-
-  project_id    = var.project_id
-  location      = var.region
-  repository_id = "scraper-service"
-  description   = "Docker repository for scraper-service"
-  format        = "DOCKER"
-
-  labels = merge(
-    local.common_labels,
-    {
-      service = "scraper"
-    }
-  )
-
-  # Cleanup policy: delete untagged images older than 30 days
-  cleanup_policy_dry_run    = false
-  cleanup_older_than        = "2592000s" # 30 days
-  cleanup_keep_tag_prefixes = null       # Delete untagged only
-}
 
 # Alerts service repository
 module "alerts_registry" {
@@ -301,46 +146,9 @@ module "alerts_registry" {
   cleanup_keep_tag_prefixes = null
 }
 
-# Archive service repository
-module "archive_registry" {
-  source = "../../modules/artifact-registry"
-
-  project_id    = var.project_id
-  location      = var.region
-  repository_id = "archive-service"
-  description   = "Docker repository for archive-service"
-  format        = "DOCKER"
-
-  labels = merge(
-    local.common_labels,
-    {
-      service = "archive"
-    }
-  )
-
-  cleanup_policy_dry_run    = false
-  cleanup_older_than        = "2592000s"
-  cleanup_keep_tag_prefixes = null
-}
-
 # =============================================================================
 # SERVICE ACCOUNTS & IAM
 # =============================================================================
-
-# Scraper Service Account - Write to Firestore
-module "scraper_service_account" {
-  source = "../../modules/service-account"
-
-  project_id             = var.project_id
-  account_id             = "scraper-sa"
-  display_name           = "Scraper Service"
-  description            = "Service account for scraper-service with write access to Firestore"
-  create_service_account = true
-
-  project_roles = [
-    "roles/datastore.user" # Write police alerts to Firestore
-  ]
-}
 
 # Alerts Service Account - Read from Firestore and GCS
 module "alerts_service_account" {
@@ -355,22 +163,6 @@ module "alerts_service_account" {
   project_roles = [
     "roles/datastore.viewer",    # Read police alerts from Firestore
     "roles/storage.objectViewer" # Read archive files from GCS bucket
-  ]
-}
-
-# Archive Service Account - Read Firestore, Read/Write to GCS
-module "archive_service_account" {
-  source = "../../modules/service-account"
-
-  project_id             = var.project_id
-  account_id             = "archive-sa"
-  display_name           = "Archive Service"
-  description            = "Service account for archive-service with Firestore read and GCS read/write access"
-  create_service_account = true
-
-  project_roles = [
-    "roles/datastore.user",     # Read from Firestore (and future delete capability)
-    "roles/storage.objectAdmin" # Read/write archives to GCS bucket (needed for idempotency check)
   ]
 }
 
@@ -399,35 +191,10 @@ resource "google_storage_bucket_iam_member" "github_actions_state_access" {
 }
 
 # Grant GitHub Actions SA ability to impersonate service accounts for deployments
-resource "google_service_account_iam_member" "github_actions_impersonate_scraper" {
-  service_account_id = module.scraper_service_account.service_account_name
-  role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:${module.github_actions_sa.service_account_email}"
-}
-
 resource "google_service_account_iam_member" "github_actions_impersonate_alerts" {
   service_account_id = module.alerts_service_account.service_account_name
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${module.github_actions_sa.service_account_email}"
-}
-
-resource "google_service_account_iam_member" "github_actions_impersonate_archive" {
-  service_account_id = module.archive_service_account.service_account_name
-  role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:${module.github_actions_sa.service_account_email}"
-}
-
-# Grant Cloud Scheduler service account invoker permissions
-resource "google_project_iam_member" "scheduler_invoker_scraper" {
-  project = var.project_id
-  role    = "roles/run.invoker"
-  member  = "serviceAccount:${module.scraper_service_account.service_account_email}"
-}
-
-resource "google_project_iam_member" "scheduler_invoker_archive" {
-  project = var.project_id
-  role    = "roles/run.invoker"
-  member  = "serviceAccount:${module.archive_service_account.service_account_email}"
 }
 
 # Firebase Admin SDK service account

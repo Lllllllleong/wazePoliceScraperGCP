@@ -23,18 +23,8 @@ variable "environment" {
 }
 
 # Cloud Run service container images
-variable "scraper_image" {
-  description = "Container image for scraper-service"
-  type        = string
-}
-
 variable "alerts_image" {
   description = "Container image for alerts-service"
-  type        = string
-}
-
-variable "archive_image" {
-  description = "Container image for archive-service"
   type        = string
 }
 
