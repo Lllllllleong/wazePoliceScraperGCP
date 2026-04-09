@@ -11,6 +11,7 @@ on:
       - 'go.sum'
       - 'Dockerfile.alerts'
       - '.github/workflows/alerts-service-ci-cd.yml'
+      - '.github/workflows/reusable-service-cicd.yml'
   pull_request:
     branches: [master, main]
 
