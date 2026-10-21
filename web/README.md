@@ -35,11 +35,13 @@ npm run build:data -- /tmp/archives
 
 ## Deploy
 
-Firebase Hosting, in the same project as the old site. Check a preview channel first:
+Firebase Hosting, in the same project as the old site, so going live updates wazepolicescrapergcp.web.app and both custom domains at once. Run these from this folder (from `dataAnalysis/` they'd deploy the old site). Every deploy builds first.
+
+Check a preview channel, then promote exactly that build:
 
 ```bash
-npm run build
-firebase hosting:channel:deploy preview
+firebase hosting:channel:deploy preview --expires 7d
+firebase hosting:clone wazepolicescrapergcp:preview wazepolicescrapergcp:live
 ```
 
-`firebase deploy --only hosting` then replaces the live site.
+To undo a release, roll back from Hosting › Release history in the Firebase console.
