@@ -1,0 +1,194 @@
+:root {
+  color-scheme: light;
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --ink: #14171c;
+  --ink-2: #3f4652;
+  --ink-3: #5a6170;
+  --line: #e3e6ea;
+  --line-strong: #d0d5dc;
+  --accent: #2251d1;
+  --accent-ink: #163a9e;
+  --accent-soft: #e8eefc;
+  --ghost: #c9ced6;
+  --tick: #14171c;
+  /* Heatmap ramp, low to high. */
+  --heat-0: #eef1f8;
+  --heat-1: #a9bbee;
+  --heat-2: #2251d1;
+  --heat-3: #0f2a72;
+  /* Map points; must be #rrggbb, the WebGL layer parses them. */
+  --point-selected: #2251d1;
+  --point-context: #8a93a1;
+  --map-mask: rgba(70, 78, 92, 0.16);
+
+  --radius: 8px;
+  --font: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --bg: #0e1014;
+    --surface: #161a20;
+    --surface-2: #1e232a;
+    --ink: #e7eaef;
+    --ink-2: #c3c9d2;
+    --ink-3: #9aa2ae;
+    --line: #262b33;
+    --line-strong: #363c46;
+    --accent: #7fa0ff;
+    --accent-ink: #bccdff;
+    --accent-soft: #1d2846;
+    --ghost: #3a414c;
+    --tick: #e7eaef;
+    --heat-0: #1b2030;
+    --heat-1: #2c407e;
+    --heat-2: #5a82f2;
+    --heat-3: #c9d6ff;
+    --point-selected: #7fa0ff;
+    --point-context: #5e6775;
+    --map-mask: rgba(0, 0, 0, 0.38);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 14px/1.45 var(--font);
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  min-width: 0;
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.card-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.legend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex: none;
+}
+
+.text-button {
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 13px;
+}
+
+.text-button:hover {
+  color: var(--accent-ink);
+  text-decoration: underline;
+}
+
+.button {
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  font-size: 13px;
+}
+
+.button:hover {
+  background: var(--surface-2);
+}
+
+.button.primary {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--surface);
+  font-weight: 500;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Small axis labels under charts. */
+.axis {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
