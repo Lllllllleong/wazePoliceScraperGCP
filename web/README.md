@@ -35,13 +35,15 @@ npm run build:data -- /tmp/archives
 
 ## Deploy
 
-Firebase Hosting, in the same project as the old site, so going live updates wazepolicescrapergcp.web.app and both custom domains at once. Run these from this folder (from `dataAnalysis/` they'd deploy the old site). Every deploy builds first.
+Firebase Hosting, in the same project as the old site, so going live updates wazepolicescrapergcp.web.app and both custom domains at once. Run these from this folder (from `dataAnalysis/` they'd deploy the old site).
 
-Check a preview channel, then promote exactly that build:
+Build and deploy a preview channel, check it, then promote exactly that build:
 
 ```bash
-firebase hosting:channel:deploy preview --expires 7d
+npm run deploy:preview
 firebase hosting:clone wazepolicescrapergcp:preview wazepolicescrapergcp:live
 ```
+
+The build runs in the npm script rather than a Firebase `predeploy` hook because the standalone Firebase CLI runs hooks with its own bundled Node, which is too old for Vite.
 
 To undo a release, roll back from Hosting › Release history in the Firebase console.

@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
     "test": "vitest run",
-    "build:data": "node scripts/build-data.ts"
+    "build:data": "node scripts/build-data.ts",
+    "deploy:preview": "npm run build && firebase hosting:channel:deploy preview --expires 7d"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
